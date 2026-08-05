@@ -2,6 +2,7 @@ import { calculateCrossfaderGains } from './crossfader'
 import { clampFxMix, delaySecondsFromMs, feedbackGain, filterFrequencyFromPosition } from './fx'
 import { decibelsToGain, readAnalyserLevel } from './meter'
 import { calculateMonitorGains, getOutputSupport, normalizeAudioOutputs, type AudioOutputDevice } from './routing'
+import { playbackRateFromPitch } from './tempo'
 import type { DeckId } from '../state/mixerStore'
 
 type DeckCallbacks = {
@@ -117,6 +118,7 @@ export class AudioEngine {
   private createDeckChannel(): DeckChannel {
     const element = new Audio()
     element.preload = 'metadata'
+    element.preservesPitch = true
 
     const source = this.context.createMediaElementSource(element)
     const inputGain = this.context.createGain()
@@ -269,6 +271,10 @@ export class AudioEngine {
     const element = this.decks[deckId].element
     if (!Number.isFinite(element.duration)) return
     element.currentTime = Math.min(element.duration, Math.max(0, seconds))
+  }
+
+  setDeckPitch(deckId: DeckId, pitchPercent: number): void {
+    this.decks[deckId].element.playbackRate = playbackRateFromPitch(pitchPercent)
   }
 
   setDeckTrim(deckId: DeckId, decibels: number): void {
