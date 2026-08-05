@@ -6,11 +6,13 @@ import { KnobControl } from './components/KnobControl'
 import { StudioDock } from './components/StudioDock'
 import { Deck } from './features/deck/Deck'
 import { Mixer } from './features/mixer/Mixer'
+import { useSessionPersistence } from './storage/useSessionPersistence'
 import { useMixerStore } from './state/mixerStore'
 
 const scrollTo = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 
 function App() {
+  useSessionPersistence()
   const [now, setNow] = useState(() => new Date())
   const devices = useMixerStore((state) => state.outputDevices)
   const masterOutputId = useMixerStore((state) => state.masterOutputId)

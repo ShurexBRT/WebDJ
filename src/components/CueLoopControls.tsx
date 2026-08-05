@@ -12,8 +12,8 @@ export function CueLoopControls({ deckId }: { deckId: DeckId }) {
   const deck = useMixerStore((state) => state.decks[deckId])
   const quantizeEnabled = useMixerStore((state) => state.quantizeEnabled)
   const setDeckTime = useMixerStore((state) => state.setDeckTime)
-  const [cuePoint, setCuePoint] = useState<number | null>(null)
-  const [loopBeats, setLoopBeats] = useState<LoopBeats>(4)
+  const setDeckCuePoint = useMixerStore((state) => state.setDeckCuePoint)
+  const setDeckLoopBeats = useMixerStore((state) => state.setDeckLoopBeats)
   const [loopRange, setLoopRange] = useState<{ start: number; end: number } | null>(null)
   const [loopEnabled, setLoopEnabled] = useState(false)
   const engine = getAudioEngine()
@@ -39,7 +39,7 @@ export function CueLoopControls({ deckId }: { deckId: DeckId }) {
       setLoopEnabled(false)
       return
     }
-    const nextRange = createLoopRange(quantizedPlayhead(), deck.duration, loopBeats, bpm)
+    const nextRange = createLoopRange(quantizedPlayhead(), deck.duration, deck.loopBeats, bpm)
     if (!nextRange) return
     setLoopRange(nextRange)
     setLoopEnabled(true)
@@ -48,16 +48,16 @@ export function CueLoopControls({ deckId }: { deckId: DeckId }) {
   return (
     <section className="cue-loop-panel" aria-label={`Cue and loop deck ${deckId}`}>
       <div className="cue-loop-row">
-        <button type="button" aria-label={`Set cue point deck ${deckId}`} disabled={!deck.trackName} onClick={() => setCuePoint(quantizedPlayhead())}><Flag size={14} /> CUE</button>
-        <button type="button" aria-label={`Return to cue point deck ${deckId}`} disabled={cuePoint === null} onClick={() => cuePoint !== null && jumpTo(cuePoint)}><CornerDownLeft size={14} /> {cuePoint === null ? '--:--' : formatTime(cuePoint)}</button>
+        <button type="button" aria-label={`Set cue point deck ${deckId}`} disabled={!deck.trackName} onClick={() => setDeckCuePoint(deckId, quantizedPlayhead())}><Flag size={14} /> CUE</button>
+        <button type="button" aria-label={`Return to cue point deck ${deckId}`} disabled={deck.cuePoint === null} onClick={() => deck.cuePoint !== null && jumpTo(deck.cuePoint)}><CornerDownLeft size={14} /> {deck.cuePoint === null ? '--:--' : formatTime(deck.cuePoint)}</button>
         <div className="loop-size-row" aria-label={`Loop size deck ${deckId}`}>
           {LOOP_BEAT_OPTIONS.map((beats) => (
-            <button key={beats} type="button" className={loopBeats === beats ? 'active' : ''} aria-pressed={loopBeats === beats} aria-label={`${beats} beat loop deck ${deckId}`} onClick={() => setLoopBeats(beats)}>{beats}</button>
+            <button key={beats} type="button" className={deck.loopBeats === beats ? 'active' : ''} aria-pressed={deck.loopBeats === beats} aria-label={`${beats} beat loop deck ${deckId}`} onClick={() => setDeckLoopBeats(deckId, beats as LoopBeats)}>{beats}</button>
           ))}
         </div>
         <button type="button" className={`loop-toggle${loopEnabled ? ' active' : ''}`} aria-label={`Loop deck ${deckId}`} aria-pressed={loopEnabled} disabled={!deck.trackName || bpm <= 0 || deck.duration <= 0} onClick={toggleLoop}><Repeat2 size={15} /> {loopEnabled ? 'ON' : 'LOOP'}</button>
       </div>
-      <small>{bpm <= 0 ? 'BPM required for beat loop' : loopRange ? `${formatTime(loopRange.start)} – ${formatTime(loopRange.end)}` : `${loopBeats} beat loop · ${quantizeEnabled ? 'quantized' : 'free'}`}</small>
+      <small>{bpm <= 0 ? 'BPM required for beat loop' : loopRange ? `${formatTime(loopRange.start)} – ${formatTime(loopRange.end)}` : `${deck.loopBeats} beat loop · ${quantizeEnabled ? 'quantized' : 'free'}`}</small>
     </section>
   )
 }
