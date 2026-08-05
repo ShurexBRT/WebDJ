@@ -11,12 +11,14 @@ export function useSessionPersistence(): void {
   const masterVolume = useMixerStore((state) => state.masterVolume)
   const cueVolume = useMixerStore((state) => state.cueVolume)
   const cueMix = useMixerStore((state) => state.cueMix)
+  const trackHistory = useMixerStore((state) => state.trackHistory)
   const restoreSession = useMixerStore((state) => state.restoreSession)
 
   useEffect(() => {
     const settings = loadSessionSettings()
     if (settings) {
       restoreSession(settings)
+      useMixerStore.setState({ trackHistory: settings.trackHistory })
       const engine = getAudioEngine()
       engine.setCrossfader(settings.crossfader)
       engine.setMasterVolume(settings.masterVolume)
@@ -37,8 +39,9 @@ export function useSessionPersistence(): void {
         masterVolume,
         cueVolume,
         cueMix,
+        trackHistory,
       })
     }, 150)
     return () => window.clearTimeout(timeout)
-  }, [crossfader, cueMix, cueVolume, masterDeck, masterVolume, quantizeEnabled])
+  }, [crossfader, cueMix, cueVolume, masterDeck, masterVolume, quantizeEnabled, trackHistory])
 }
