@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { buildBeatGrid } from '../audio/beatGrid'
 
 type WaveformProps = {
   peaks: number[]
@@ -6,9 +7,12 @@ type WaveformProps = {
   accent: string
   onSeek: (progress: number) => void
   label: string
+  duration?: number
+  bpm?: number
+  beatOffsetSeconds?: number
 }
 
-export function Waveform({ peaks, progress, accent, onSeek, label }: WaveformProps) {
+export function Waveform({ peaks, progress, accent, onSeek, label, duration = 0, bpm = 0, beatOffsetSeconds = 0 }: WaveformProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
 
   useEffect(() => {
@@ -36,6 +40,15 @@ export function Waveform({ peaks, progress, accent, onSeek, label }: WaveformPro
       context.fillRect(x, center - height / 2, Math.max(1, barWidth - 1), height)
     })
 
+    if (duration > 0 && bpm > 0) {
+      const markers = buildBeatGrid(duration, bpm, beatOffsetSeconds)
+      markers.forEach((marker) => {
+        const x = (marker.time / duration) * rect.width
+        context.fillStyle = marker.isBarStart ? 'rgba(255,255,255,0.72)' : 'rgba(255,255,255,0.22)'
+        context.fillRect(x, marker.isBarStart ? 0 : rect.height * 0.18, marker.isBarStart ? 1.5 : 1, marker.isBarStart ? rect.height : rect.height * 0.64)
+      })
+    }
+
     if (peaks.length === 0) {
       context.fillStyle = 'rgba(129, 143, 166, 0.28)'
       context.font = '12px system-ui'
@@ -46,7 +59,7 @@ export function Waveform({ peaks, progress, accent, onSeek, label }: WaveformPro
     const playheadX = Math.max(0, Math.min(1, progress)) * rect.width
     context.fillStyle = '#ffffff'
     context.fillRect(playheadX, 0, 1, rect.height)
-  }, [accent, peaks, progress])
+  }, [accent, beatOffsetSeconds, bpm, duration, peaks, progress])
 
   const handlePointer = (clientX: number) => {
     const canvas = canvasRef.current
