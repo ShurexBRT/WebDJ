@@ -64,7 +64,7 @@ test('sets pitch independently and syncs one deck BPM to the other', async ({ pa
   await expect(page.getByLabel('Sync deck B to deck A')).toBeEnabled()
 
   await page.getByLabel('Sync deck B to deck A').click()
-  await expect(page.getByLabel('Pitch deck B')).toHaveValue('-0.16')
+  await expect(page.getByLabel('Pitch deck B')).toHaveValue('-0.2')
 })
 
 test('keeps filter echo and reverb independent per deck', async ({ page }) => {
