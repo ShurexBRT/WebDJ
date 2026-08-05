@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Headphones, Music2, Pause, Play, RefreshCw, SlidersHorizontal, Upload } from 'lucide-react'
 import { getAudioEngine } from './audio/AudioEngine'
 import { decodeWaveform } from './audio/waveform'
@@ -194,7 +194,7 @@ function AudioSettings() {
   const [message, setMessage] = useState('')
   const engine = getAudioEngine()
 
-  const refreshDevices = async (requestAccess = false) => {
+  const refreshDevices = useCallback(async (requestAccess = false) => {
     try {
       const nextDevices = requestAccess ? await engine.requestOutputAccess() : await engine.listOutputDevices()
       setDevices(nextDevices)
@@ -202,13 +202,20 @@ function AudioSettings() {
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Unable to read audio outputs')
     }
-  }
+  }, [engine, setDevices])
 
   useEffect(() => {
     const support = engine.getOutputSupport()
     setOutputSelectionSupported(support.canSelectOutput)
-    if (support.canEnumerate) void refreshDevices(false)
-  }, [])
+
+    if (!support.canEnumerate) return
+
+    const task = window.setTimeout(() => {
+      void refreshDevices(false)
+    }, 0)
+
+    return () => window.clearTimeout(task)
+  }, [engine, refreshDevices, setOutputSelectionSupported])
 
   return (
     <section className="audio-settings" aria-label="Audio output settings">
