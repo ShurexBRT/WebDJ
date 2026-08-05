@@ -2,6 +2,7 @@ import { Gauge } from 'lucide-react'
 import { effectiveBpm, normalizeBpm, pitchToMatchBpm } from '../audio/tempo'
 import { getAudioEngine } from '../audio/AudioEngine'
 import { useMixerStore, type DeckId } from '../state/mixerStore'
+import './tempo.css'
 
 export function TempoControls({ deckId }: { deckId: DeckId }) {
   const deck = useMixerStore((state) => state.decks[deckId])
