@@ -24,3 +24,10 @@ test('keeps mixer and deck controls accessible after the visual redesign', async
   await expect(page.getByRole('button', { name: 'Hot cue A deck A' })).toBeDisabled()
   await expect(page.getByRole('button', { name: 'Kick' })).toBeVisible()
 })
+
+test('captures the desktop studio for render comparison', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 1536, height: 1024 })
+  await page.goto('/')
+  await page.locator('main').screenshot({ path: testInfo.outputPath('webdj-studio.png'), animations: 'disabled' })
+  await testInfo.attach('webdj-studio', { path: testInfo.outputPath('webdj-studio.png'), contentType: 'image/png' })
+})
