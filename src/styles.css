@@ -1,0 +1,46 @@
+:root {
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #f5f7fb;
+  background: #080a0f;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 1180px; min-height: 100vh; background: radial-gradient(circle at top, #151b29 0, #080a0f 38%, #05070a 100%); }
+button, input { font: inherit; }
+button { color: inherit; }
+
+.app-shell { min-height: 100vh; padding: 20px; }
+.topbar { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border: 1px solid #262d3b; border-radius: 14px; background: rgba(14,17,24,.92); box-shadow: 0 18px 60px rgba(0,0,0,.32); }
+.brand, .status, .mixer-title { display: flex; align-items: center; gap: 10px; }
+.brand { font-size: 21px; font-weight: 800; letter-spacing: -.03em; }
+.status { color: #929cad; font-size: 13px; }
+.status-dot { width: 8px; height: 8px; border-radius: 50%; background: #48dc86; box-shadow: 0 0 15px #48dc86; }
+.workspace { display: grid; grid-template-columns: minmax(0, 1fr) 330px minmax(0, 1fr); gap: 14px; margin-top: 14px; }
+.deck, .mixer, .library { border: 1px solid #262d3b; border-radius: 16px; background: linear-gradient(180deg, rgba(21,25,35,.96), rgba(10,12,18,.98)); box-shadow: 0 24px 70px rgba(0,0,0,.28); }
+.deck { min-height: 565px; padding: 22px; display: flex; flex-direction: column; }
+.deck-a { border-top-color: #29b6ff; }
+.deck-b { border-top-color: #ff9a3d; }
+.deck-heading { display: flex; justify-content: space-between; gap: 20px; color: #919bad; font-size: 12px; letter-spacing: .12em; }
+.deck-heading strong { color: #f4f7fb; font-size: 15px; letter-spacing: 0; }
+.waveform-placeholder { margin-top: 22px; height: 190px; border: 1px solid #2a3242; border-radius: 12px; display: grid; place-items: center; color: #515d70; font-size: 12px; letter-spacing: .18em; background: repeating-linear-gradient(90deg, transparent 0 39px, rgba(255,255,255,.035) 40px), #090c12; }
+.transport { display: flex; align-items: center; justify-content: center; gap: 16px; margin: 42px 0; }
+.transport-button { width: 96px; height: 96px; border-radius: 50%; border: 1px solid #3b465b; background: radial-gradient(circle at 35% 30%, #283146, #0c0f16 65%); display: grid; place-items: center; cursor: pointer; }
+.transport-button svg { width: 32px; height: 32px; }
+.deck-a .transport-button { color: #42c1ff; box-shadow: inset 0 0 25px rgba(66,193,255,.12); }
+.deck-b .transport-button { color: #ff9a3d; box-shadow: inset 0 0 25px rgba(255,154,61,.12); }
+.cue-button, .library button { border: 1px solid #39445a; border-radius: 10px; background: #141925; padding: 12px 16px; display: flex; gap: 8px; align-items: center; cursor: pointer; }
+.control-row { margin-top: auto; display: grid; gap: 10px; color: #9aa4b5; font-size: 12px; text-transform: uppercase; letter-spacing: .12em; }
+input[type="range"] { width: 100%; accent-color: #7b8cff; }
+.mixer { min-height: 565px; padding: 20px; }
+.mixer-title { justify-content: center; color: #cbd2df; font-size: 12px; letter-spacing: .16em; }
+.eq-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 30px 16px; margin: 42px 0 60px; }
+.knob { display: grid; justify-items: center; gap: 12px; color: #8893a5; font-size: 11px; letter-spacing: .13em; }
+.knob-face { width: 58px; height: 58px; border-radius: 50%; border: 1px solid #4a556b; background: radial-gradient(circle at 38% 34%, #30384a, #10131a 63%); box-shadow: inset 0 0 12px rgba(255,255,255,.04), 0 9px 18px rgba(0,0,0,.3); }
+.crossfader { display: grid; gap: 14px; color: #929cad; font-size: 11px; letter-spacing: .14em; text-align: center; }
+.cross-labels { display: flex; justify-content: space-between; color: #707b8e; }
+.library { margin-top: 14px; padding: 20px 22px; display: flex; align-items: center; justify-content: space-between; }
+.library h2 { margin: 0 0 5px; font-size: 16px; }
+.library p { margin: 0; color: #8792a4; font-size: 13px; }
+.library button { background: #1b2640; border-color: #40557c; }
