@@ -1,5 +1,8 @@
-import { Clock3, Disc3, Headphones, Library, Music2, Settings, SlidersHorizontal, Waves } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { Disc3, Library, Music2, Settings, Waves } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
+import { getAudioEngine } from './audio/AudioEngine'
+import { KnobControl } from './components/KnobControl'
+import { LevelMeter } from './components/LevelMeter'
 import { StudioDock } from './components/StudioDock'
 import { Deck } from './features/deck/Deck'
 import { Mixer } from './features/mixer/Mixer'
@@ -11,17 +14,17 @@ function App() {
   const [now, setNow] = useState(() => new Date())
   const devices = useMixerStore((state) => state.outputDevices)
   const masterOutputId = useMixerStore((state) => state.masterOutputId)
-  const loadedTracks = useMixerStore((state) => Object.values(state.decks).filter((deck) => deck.trackName).length)
+  const masterVolume = useMixerStore((state) => state.masterVolume)
+  const outputSelectionSupported = useMixerStore((state) => state.outputSelectionSupported)
+  const setMasterOutputId = useMixerStore((state) => state.setMasterOutputId)
+  const setMasterVolume = useMixerStore((state) => state.setMasterVolume)
+  const engine = getAudioEngine()
+  const readMasterLevel = useCallback(() => engine.getMasterLevel(), [engine])
 
   useEffect(() => {
     const interval = window.setInterval(() => setNow(new Date()), 30_000)
     return () => window.clearInterval(interval)
   }, [])
-
-  const outputLabel = useMemo(() => {
-    if (masterOutputId === 'default') return 'System default'
-    return devices.find((device) => device.deviceId === masterOutputId)?.label ?? 'Selected output'
-  }, [devices, masterOutputId])
 
   return (
     <main className="app-shell">
@@ -32,20 +35,30 @@ function App() {
         </div>
 
         <nav className="studio-nav" aria-label="Studio sections">
-          <button className="active" type="button" onClick={() => scrollTo('library-dock')}><Library size={15} /> Library</button>
-          <button type="button" onClick={() => scrollTo('effects-deck-A')}><Waves size={15} /> Effects</button>
-          <button type="button" onClick={() => scrollTo('performance-pads')}><Disc3 size={15} /> Performance</button>
+          <button className="active" type="button" onClick={() => scrollTo('library-dock')}><Library size={14} /> Library</button>
+          <button type="button" onClick={() => scrollTo('effects-deck-A')}><Waves size={14} /> Effects</button>
+          <button type="button" onClick={() => scrollTo('sampler-panel')}><Disc3 size={14} /> Sampler</button>
           <button type="button" disabled title="Recording will be added in a later milestone">REC</button>
-          <button type="button" onClick={() => scrollTo('audio-routing')}><Settings size={15} /> Settings</button>
+          <button type="button" onClick={() => scrollTo('audio-routing')}><Settings size={14} /> Settings</button>
         </nav>
 
-        <div className="studio-clock"><Clock3 size={14} /> {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+        <div className="studio-clock">{now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
 
-        <div className="studio-status">
-          <div className="status-block"><SlidersHorizontal size={15} /><span>ENGINE</span><strong>READY</strong></div>
-          <div className="status-block"><Headphones size={15} /><span>OUTPUT</span><strong title={outputLabel}>{outputLabel}</strong></div>
-          <span className="loaded-count">{loadedTracks}/2 decks loaded</span>
+        <div className="header-master">
+          <KnobControl label="MASTER" ariaLabel="Header master volume" value={masterVolume} min={0} max={1} step={0.01} accent="#d9e3ea" valueLabel="" onDoubleClick={() => { setMasterVolume(0.9); engine.setMasterVolume(0.9) }} onChange={(value) => { setMasterVolume(value); engine.setMasterVolume(value) }} />
+          <div className="header-meter"><LevelMeter label="Header master level" readLevel={readMasterLevel} /><LevelMeter label="Header master level right" readLevel={readMasterLevel} /></div>
         </div>
+
+        <div className="cpu-status"><span>CPU</span><div><i /></div><strong>{navigator.hardwareConcurrency || '—'}C</strong></div>
+
+        <label className="header-output">
+          <span>OUTPUT</span>
+          <select aria-label="Header master output" value={masterOutputId} disabled={!outputSelectionSupported} onChange={async (event) => { const id = event.target.value; await engine.initialize(); await engine.setMasterOutput(id); setMasterOutputId(id) }}>
+            <option value="default">Speakers (Default)</option>
+            {devices.filter((device) => device.deviceId !== 'default').map((device) => <option key={device.deviceId} value={device.deviceId}>{device.label}</option>)}
+          </select>
+        </label>
+        <button className="header-settings" type="button" aria-label="Open audio settings" onClick={() => scrollTo('audio-routing')}><Settings size={16} /></button>
       </header>
 
       <div className="workspace" id="mixer-workspace">
