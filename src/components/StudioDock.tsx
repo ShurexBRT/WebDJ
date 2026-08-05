@@ -1,7 +1,6 @@
-import { FolderOpen, Headphones, History, ListMusic, Search, Sparkles, Trash2, Upload } from 'lucide-react'
+import { FolderOpen, History, ListMusic, Search, Sparkles, Trash2, Upload } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { effectiveBpm } from '../audio/tempo'
-import { formatTime } from '../audio/transport'
 import { getAudioEngine } from '../audio/AudioEngine'
 import { AudioSettings } from '../features/settings/AudioSettings'
 import { useLibraryStore } from '../state/libraryStore'
