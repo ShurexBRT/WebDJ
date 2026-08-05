@@ -1,4 +1,5 @@
 import { calculateCrossfaderGains } from './crossfader'
+import { decibelsToGain, readAnalyserLevel } from './meter'
 import { calculateMonitorGains, getOutputSupport, normalizeAudioOutputs, type AudioOutputDevice } from './routing'
 import type { DeckId } from '../state/mixerStore'
 
@@ -18,6 +19,8 @@ type DeckChannel = {
   low: BiquadFilterNode
   mid: BiquadFilterNode
   high: BiquadFilterNode
+  analyser: AnalyserNode
+  meterBuffer: Uint8Array
   channelGain: GainNode
   crossfadeGain: GainNode
   cueGain: GainNode
@@ -27,6 +30,8 @@ type DeckChannel = {
 export class AudioEngine {
   readonly context: AudioContext
   private readonly masterGain: GainNode
+  private readonly masterAnalyser: AnalyserNode
+  private readonly masterMeterBuffer: Uint8Array
   private readonly masterDestination: MediaStreamAudioDestinationNode
   private readonly cueDestination: MediaStreamAudioDestinationNode
   private readonly cueBus: GainNode
@@ -42,6 +47,8 @@ export class AudioEngine {
     this.context = new AudioContext({ latencyHint: 'interactive' })
     this.masterGain = this.context.createGain()
     this.masterGain.gain.value = 0.9
+    this.masterAnalyser = this.createAnalyser()
+    this.masterMeterBuffer = new Uint8Array(this.masterAnalyser.fftSize)
 
     this.masterDestination = this.context.createMediaStreamDestination()
     this.cueDestination = this.context.createMediaStreamDestination()
@@ -53,8 +60,9 @@ export class AudioEngine {
     this.masterOutput = this.createOutputElement(this.masterDestination.stream)
     this.cueOutput = this.createOutputElement(this.cueDestination.stream)
 
-    this.masterGain.connect(this.masterDestination)
-    this.masterGain.connect(this.masterMonitorGain)
+    this.masterGain.connect(this.masterAnalyser)
+    this.masterAnalyser.connect(this.masterDestination)
+    this.masterAnalyser.connect(this.masterMonitorGain)
     this.masterMonitorGain.connect(this.cueOutputGain)
     this.cueBus.connect(this.cueMonitorGain)
     this.cueMonitorGain.connect(this.cueOutputGain)
@@ -77,6 +85,13 @@ export class AudioEngine {
     return output
   }
 
+  private createAnalyser(): AnalyserNode {
+    const analyser = this.context.createAnalyser()
+    analyser.fftSize = 256
+    analyser.smoothingTimeConstant = 0.72
+    return analyser
+  }
+
   private createDeckChannel(): DeckChannel {
     const element = new Audio()
     element.preload = 'metadata'
@@ -86,13 +101,15 @@ export class AudioEngine {
     const low = this.createEqBand('lowshelf', 180)
     const mid = this.createEqBand('peaking', 1_200, 0.8)
     const high = this.createEqBand('highshelf', 6_500)
+    const analyser = this.createAnalyser()
+    const meterBuffer = new Uint8Array(analyser.fftSize)
     const channelGain = this.context.createGain()
     const crossfadeGain = this.context.createGain()
     const cueGain = this.context.createGain()
     cueGain.gain.value = 0
 
     source.connect(inputGain).connect(low).connect(mid).connect(high)
-    high.connect(channelGain).connect(crossfadeGain).connect(this.masterGain)
+    high.connect(analyser).connect(channelGain).connect(crossfadeGain).connect(this.masterGain)
     high.connect(cueGain).connect(this.cueBus)
 
     return {
@@ -102,6 +119,8 @@ export class AudioEngine {
       low,
       mid,
       high,
+      analyser,
+      meterBuffer,
       channelGain,
       crossfadeGain,
       cueGain,
@@ -199,9 +218,27 @@ export class AudioEngine {
     element.currentTime = Math.min(element.duration, Math.max(0, seconds))
   }
 
+  setDeckTrim(deckId: DeckId, decibels: number): void {
+    this.decks[deckId].inputGain.gain.setTargetAtTime(decibelsToGain(decibels), this.context.currentTime, 0.01)
+  }
+
   setDeckVolume(deckId: DeckId, value: number): void {
     const gain = Math.min(1, Math.max(0, value))
     this.decks[deckId].channelGain.gain.setTargetAtTime(gain, this.context.currentTime, 0.01)
+  }
+
+  setMasterVolume(value: number): void {
+    const gain = Math.min(1, Math.max(0, value))
+    this.masterGain.gain.setTargetAtTime(gain, this.context.currentTime, 0.01)
+  }
+
+  getDeckLevel(deckId: DeckId): number {
+    const deck = this.decks[deckId]
+    return readAnalyserLevel(deck.analyser, deck.meterBuffer)
+  }
+
+  getMasterLevel(): number {
+    return readAnalyserLevel(this.masterAnalyser, this.masterMeterBuffer)
   }
 
   setDeckCue(deckId: DeckId, enabled: boolean): void {
