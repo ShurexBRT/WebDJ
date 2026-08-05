@@ -2,8 +2,10 @@ import { useCallback } from 'react'
 import { Headphones, Pause, Play, Upload } from 'lucide-react'
 import { getAudioEngine } from '../../audio/AudioEngine'
 import { analyzeFileBpm } from '../../audio/bpmAnalysis'
+import { effectiveBpm } from '../../audio/tempo'
 import { formatTime, progressFromTime, timeFromProgress } from '../../audio/transport'
 import { decodeWaveform } from '../../audio/waveform'
+import { BeatGridControls } from '../../components/BeatGridControls'
 import { CueLoopControls } from '../../components/CueLoopControls'
 import { EffectsPanel } from '../../components/EffectsPanel'
 import { LevelMeter } from '../../components/LevelMeter'
@@ -26,6 +28,7 @@ export function Deck({ side }: { side: DeckId }) {
   const engine = getAudioEngine()
   const readLevel = useCallback(() => engine.getDeckLevel(side), [engine, side])
   const progress = progressFromTime(deck.currentTime, deck.duration)
+  const gridBpm = effectiveBpm(deck.bpm, deck.pitchPercent)
   const accent = side === 'A' ? '#29b6ff' : '#ff9a3d'
 
   const seekToProgress = (nextProgress: number) => {
@@ -89,7 +92,7 @@ export function Deck({ side }: { side: DeckId }) {
       <div className="deck-heading"><span>DECK {side}</span><strong>{deck.trackName ?? 'No track loaded'}</strong></div>
       <div className="waveform-panel">
         <div className="time-readout"><span>{formatTime(deck.currentTime)}</span><span>{deck.isAnalyzing ? 'ANALYZING AUDIO…' : deck.analysisError ?? 'WAVEFORM'}</span><span>{formatTime(deck.duration)}</span></div>
-        <Waveform peaks={deck.waveform} progress={progress} accent={accent} label={`Waveform deck ${side}`} onSeek={seekToProgress} />
+        <Waveform peaks={deck.waveform} progress={progress} accent={accent} label={`Waveform deck ${side}`} duration={deck.duration} bpm={gridBpm} beatOffsetSeconds={deck.beatOffsetSeconds} onSeek={seekToProgress} />
       </div>
       <input aria-label={`Seek deck ${side}`} type="range" min="0" max={Math.max(deck.duration, 0)} step="0.1" value={Math.min(deck.currentTime, deck.duration || 0)} disabled={!deck.duration} onChange={(event) => { const value = Number(event.target.value); engine.seek(side, value); setDeckTime(side, value) }} />
       <div className="transport">
@@ -98,6 +101,7 @@ export function Deck({ side }: { side: DeckId }) {
       </div>
       <CueLoopControls key={`${side}-${deck.trackName ?? 'empty'}`} deckId={side} />
       <TempoControls deckId={side} />
+      <BeatGridControls deckId={side} />
       <div className="channel-strip">
         <LevelMeter label={`Deck ${side} level`} readLevel={readLevel} />
         <div className="channel-controls">
