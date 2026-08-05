@@ -1,3 +1,10 @@
+.studio-nav button.recording {
+  color: #170303;
+  border-color: #ff5555;
+  background: #ff5555;
+  box-shadow: 0 0 14px rgba(255, 70, 70, .28);
+}
+
 .recorder-panel {
   margin-top: 5px;
   min-height: 68px;
