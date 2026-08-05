@@ -89,4 +89,15 @@ describe('mixer store', () => {
     expect(state.masterOutputId).toBe('speakers')
     expect(state.cueOutputId).toBe('headphones')
   })
+
+  it('tracks tempo master and global quantize without touching the crossfader', () => {
+    useMixerStore.getState().setCrossfader(0.35)
+    useMixerStore.getState().setMasterDeck('B')
+    useMixerStore.getState().setQuantizeEnabled(false)
+
+    const state = useMixerStore.getState()
+    expect(state.masterDeck).toBe('B')
+    expect(state.quantizeEnabled).toBe(false)
+    expect(state.crossfader).toBe(0.35)
+  })
 })

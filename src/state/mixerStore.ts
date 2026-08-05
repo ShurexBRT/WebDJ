@@ -35,6 +35,8 @@ export type DeckState = {
 type MixerState = {
   decks: Record<DeckId, DeckState>
   crossfader: number
+  masterDeck: DeckId | null
+  quantizeEnabled: boolean
   masterVolume: number
   cueVolume: number
   cueMix: number
@@ -59,6 +61,8 @@ type MixerState = {
   setDeckAnalysis: (deckId: DeckId, isAnalyzing: boolean, error?: string | null) => void
   setDeckCue: (deckId: DeckId, enabled: boolean) => void
   setCrossfader: (value: number) => void
+  setMasterDeck: (deckId: DeckId | null) => void
+  setQuantizeEnabled: (enabled: boolean) => void
   setMasterVolume: (value: number) => void
   setCueVolume: (value: number) => void
   setCueMix: (value: number) => void
@@ -100,6 +104,8 @@ const emptyDeck = (): DeckState => ({
 const initialState = () => ({
   decks: { A: emptyDeck(), B: emptyDeck() } as Record<DeckId, DeckState>,
   crossfader: 0,
+  masterDeck: null as DeckId | null,
+  quantizeEnabled: true,
   masterVolume: 0.9,
   cueVolume: 0.8,
   cueMix: 0,
@@ -165,6 +171,8 @@ export const useMixerStore = create<MixerState>((set) => ({
   })),
   setDeckCue: (deckId, cueEnabled) => set((state) => ({ decks: { ...state.decks, [deckId]: { ...state.decks[deckId], cueEnabled } } })),
   setCrossfader: (crossfader) => set({ crossfader }),
+  setMasterDeck: (masterDeck) => set({ masterDeck }),
+  setQuantizeEnabled: (quantizeEnabled) => set({ quantizeEnabled }),
   setMasterVolume: (masterVolume) => set({ masterVolume }),
   setCueVolume: (cueVolume) => set({ cueVolume }),
   setCueMix: (cueMix) => set({ cueMix }),

@@ -1,7 +1,8 @@
 import { type CSSProperties } from 'react'
-import { Headphones, Pause, Play, Upload } from 'lucide-react'
+import { ChevronsLeft, ChevronsRight, Headphones, Pause, Play, Upload } from 'lucide-react'
 import { getAudioEngine } from '../../audio/AudioEngine'
 import { analyzeFileBpm } from '../../audio/bpmAnalysis'
+import { phaseAlignedTime, phaseLabel, signedPhaseErrorSeconds } from '../../audio/phaseSync'
 import { effectiveBpm, pitchToMatchBpm } from '../../audio/tempo'
 import { formatTime, progressFromTime, timeFromProgress } from '../../audio/transport'
 import { decodeWaveform } from '../../audio/waveform'
@@ -12,11 +13,13 @@ import { HotCueControls } from '../../components/HotCueControls'
 import { TempoControls } from '../../components/TempoControls'
 import { Waveform } from '../../components/Waveform'
 import { useMixerStore, type DeckId } from '../../state/mixerStore'
+import './transportControls.css'
 
 export function Deck({ side }: { side: DeckId }) {
   const deck = useMixerStore((state) => state.decks[side])
   const otherSide: DeckId = side === 'A' ? 'B' : 'A'
   const otherDeck = useMixerStore((state) => state.decks[otherSide])
+  const masterDeck = useMixerStore((state) => state.masterDeck)
   const loadTrack = useMixerStore((state) => state.loadTrack)
   const setPlaying = useMixerStore((state) => state.setPlaying)
   const setDeckTime = useMixerStore((state) => state.setDeckTime)
@@ -25,10 +28,23 @@ export function Deck({ side }: { side: DeckId }) {
   const setDeckBpmAnalysis = useMixerStore((state) => state.setDeckBpmAnalysis)
   const setDeckCue = useMixerStore((state) => state.setDeckCue)
   const setDeckPitch = useMixerStore((state) => state.setDeckPitch)
-  const setCrossfader = useMixerStore((state) => state.setCrossfader)
+  const setMasterDeck = useMixerStore((state) => state.setMasterDeck)
   const engine = getAudioEngine()
   const progress = progressFromTime(deck.currentTime, deck.duration)
   const gridBpm = effectiveBpm(deck.bpm, deck.pitchPercent)
+  const otherGridBpm = effectiveBpm(otherDeck.bpm, otherDeck.pitchPercent)
+  const isMaster = masterDeck === side
+  const syncReferenceId: DeckId = masterDeck && masterDeck !== side ? masterDeck : otherSide
+  const syncReference = syncReferenceId === otherSide ? otherDeck : deck
+  const syncReferenceBpm = effectiveBpm(syncReference.bpm, syncReference.pitchPercent)
+  const phaseError = side === syncReferenceId ? 0 : signedPhaseErrorSeconds(
+    deck.currentTime,
+    gridBpm,
+    deck.beatOffsetSeconds,
+    syncReference.currentTime,
+    syncReferenceBpm,
+    syncReference.beatOffsetSeconds,
+  )
   const accent = side === 'A' ? '#29b6ff' : '#ff921f'
   const deckStyle = {
     '--deck-accent': accent,
@@ -41,19 +57,30 @@ export function Deck({ side }: { side: DeckId }) {
     setDeckTime(side, nextTime)
   }
 
-  const syncToOtherDeck = () => {
-    const targetBpm = effectiveBpm(otherDeck.bpm, otherDeck.pitchPercent)
-    const nextPitch = pitchToMatchBpm(deck.bpm, targetBpm)
+  const syncToReference = () => {
+    if (side === syncReferenceId) return
+    const nextPitch = pitchToMatchBpm(deck.bpm, syncReferenceBpm)
     if (nextPitch === null) return
+
     setDeckPitch(side, nextPitch)
     engine.setDeckPitch(side, nextPitch)
+
+    const targetTime = engine.getDeckCurrentTime(side) || deck.currentTime
+    const referenceTime = engine.getDeckCurrentTime(syncReferenceId) || syncReference.currentTime
+    const targetBpm = effectiveBpm(deck.bpm, nextPitch)
+    const alignedTime = phaseAlignedTime(
+      targetTime,
+      targetBpm,
+      deck.beatOffsetSeconds,
+      referenceTime,
+      syncReferenceBpm,
+      syncReference.beatOffsetSeconds,
+    )
+    engine.seek(side, alignedTime)
+    setDeckTime(side, alignedTime)
   }
 
-  const makeMaster = () => {
-    const value = side === 'A' ? -1 : 1
-    setCrossfader(value)
-    engine.setCrossfader(value)
-  }
+  const toggleMaster = () => setMasterDeck(isMaster ? null : side)
 
   const handleFile = async (file?: File) => {
     if (!file) return
@@ -105,13 +132,15 @@ export function Deck({ side }: { side: DeckId }) {
     setPlaying(side, true)
   }
 
+  const canSync = !isMaster && deck.bpm > 0 && syncReference.bpm > 0
+
   return (
-    <section className={`deck deck-${side.toLowerCase()}`} data-testid={`deck-${side}`} style={deckStyle}>
+    <section className={`deck deck-${side.toLowerCase()}${isMaster ? ' deck-master' : ''}`} data-testid={`deck-${side}`} style={deckStyle}>
       <div className="deck-heading">
         <span>DECK {side}</span>
         <div className="deck-heading-actions">
-          <button type="button" disabled={deck.bpm <= 0 || otherDeck.bpm <= 0} onClick={syncToOtherDeck} aria-label={`Sync deck ${side} to deck ${otherSide}`}>SYNC</button>
-          <button type="button" onClick={makeMaster} aria-label={`Make deck ${side} master`}>MASTER</button>
+          <button type="button" disabled={!canSync} onClick={syncToReference} aria-label={`Sync deck ${side} to deck ${syncReferenceId}`}>SYNC</button>
+          <button className={isMaster ? 'active' : ''} type="button" aria-pressed={isMaster} onClick={toggleMaster} aria-label={`Make deck ${side} master`}>{isMaster ? 'MASTER ✓' : 'MASTER'}</button>
         </div>
       </div>
 
@@ -147,6 +176,11 @@ export function Deck({ side }: { side: DeckId }) {
             <button className="transport-button" onClick={togglePlayback} disabled={!deck.trackName} aria-label={`${deck.isPlaying ? 'Pause' : 'Play'} deck ${side} platter`}>{deck.isPlaying ? <Pause /> : <Play />}</button>
             <div className="jog-readout"><strong>{gridBpm > 0 ? gridBpm.toFixed(2) : '--.--'}</strong><span>{deck.pitchPercent > 0 ? '+' : ''}{deck.pitchPercent.toFixed(1)}%</span></div>
             <span className="jog-needle" />
+            <span className={`phase-readout${Math.abs(phaseError) <= 0.005 && gridBpm > 0 && otherGridBpm > 0 ? ' locked' : ''}`}>{gridBpm > 0 && otherGridBpm > 0 ? phaseLabel(phaseError) : 'PHASE —'}</span>
+          </div>
+          <div className="nudge-controls" aria-label={`Beat nudge deck ${side}`}>
+            <button type="button" disabled={!deck.trackName} aria-label={`Nudge deck ${side} slower`} onPointerDown={() => engine.nudgeDeck(side, -1)}><ChevronsLeft size={15} /> SLOW</button>
+            <button type="button" disabled={!deck.trackName} aria-label={`Nudge deck ${side} faster`} onPointerDown={() => engine.nudgeDeck(side, 1)}>FAST <ChevronsRight size={15} /></button>
           </div>
           <label className="load-track-button"><Upload size={16} /> Load local track<input data-testid={`file-input-${side}`} type="file" accept="audio/*" onChange={(event) => handleFile(event.target.files?.[0])} /></label>
         </div>
