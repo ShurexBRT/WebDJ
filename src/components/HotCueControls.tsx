@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { getAudioEngine } from '../audio/AudioEngine'
 import { quantizeTime } from '../audio/phaseSync'
 import { effectiveBpm } from '../audio/tempo'
@@ -11,7 +10,7 @@ export function HotCueControls({ deckId }: { deckId: DeckId }) {
   const deck = useMixerStore((state) => state.decks[deckId])
   const quantizeEnabled = useMixerStore((state) => state.quantizeEnabled)
   const setDeckTime = useMixerStore((state) => state.setDeckTime)
-  const [hotCues, setHotCues] = useState<Array<number | null>>(() => hotCueLabels.map(() => null))
+  const setDeckHotCue = useMixerStore((state) => state.setDeckHotCue)
   const engine = getAudioEngine()
   const bpm = effectiveBpm(deck.bpm, deck.pitchPercent)
 
@@ -20,17 +19,13 @@ export function HotCueControls({ deckId }: { deckId: DeckId }) {
     : deck.currentTime
 
   const activateCue = (index: number) => {
-    const cueTime = hotCues[index]
+    const cueTime = deck.hotCues[index]
     if (cueTime === null) {
-      setHotCues((current) => current.map((value, itemIndex) => itemIndex === index ? currentCueTime() : value))
+      setDeckHotCue(deckId, index, currentCueTime())
       return
     }
     engine.seek(deckId, cueTime)
     setDeckTime(deckId, cueTime)
-  }
-
-  const clearCue = (index: number) => {
-    setHotCues((current) => current.map((value, itemIndex) => itemIndex === index ? null : value))
   }
 
   return (
@@ -38,7 +33,7 @@ export function HotCueControls({ deckId }: { deckId: DeckId }) {
       <span>HOT CUES · {quantizeEnabled ? 'QNTZ' : 'FREE'}</span>
       <div>
         {hotCueLabels.map((label, index) => {
-          const cueTime = hotCues[index]
+          const cueTime = deck.hotCues[index]
           return (
             <button
               key={label}
@@ -48,7 +43,7 @@ export function HotCueControls({ deckId }: { deckId: DeckId }) {
               title={cueTime === null ? `Set hot cue ${label}` : `${formatTime(cueTime)} · right click to clear`}
               disabled={!deck.trackName}
               onClick={() => activateCue(index)}
-              onContextMenu={(event) => { event.preventDefault(); clearCue(index) }}
+              onContextMenu={(event) => { event.preventDefault(); setDeckHotCue(deckId, index, null) }}
             >
               {label}
             </button>
