@@ -21,6 +21,8 @@ test('renders the complete dual-deck workspace', async ({ page }) => {
   await expect(page.getByRole('meter', { name: 'Master level' })).toBeVisible()
   await expect(page.getByRole('region', { name: 'Effects deck A' })).toBeVisible()
   await expect(page.getByRole('region', { name: 'Effects deck B' })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Tempo deck A' })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Tempo deck B' })).toBeVisible()
 })
 
 test('loads independent local files into both decks', async ({ page }) => {
@@ -47,6 +49,22 @@ test('changes gain and mixer controls without coupling the decks', async ({ page
   await expect(page.getByLabel('low EQ deck B')).toHaveValue('-12')
   await expect(page.getByLabel('Master volume')).toHaveValue('0.65')
   await expect(page.getByLabel('Crossfader')).toHaveValue('1')
+})
+
+test('sets pitch independently and syncs one deck BPM to the other', async ({ page }) => {
+  await page.goto('/')
+
+  await expect(page.getByLabel('Sync deck B to deck A')).toBeDisabled()
+  await page.getByLabel('BPM deck A').fill('120')
+  await page.getByLabel('BPM deck B').fill('125')
+  await page.getByLabel('Pitch deck A').fill('4')
+
+  await expect(page.getByLabel('Pitch deck A')).toHaveValue('4')
+  await expect(page.getByLabel('Pitch deck B')).toHaveValue('0')
+  await expect(page.getByLabel('Sync deck B to deck A')).toBeEnabled()
+
+  await page.getByLabel('Sync deck B to deck A').click()
+  await expect(page.getByLabel('Pitch deck B')).toHaveValue('-0.16')
 })
 
 test('keeps filter echo and reverb independent per deck', async ({ page }) => {
