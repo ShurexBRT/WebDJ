@@ -2,29 +2,61 @@ import { create } from 'zustand'
 
 export type DeckId = 'A' | 'B'
 
-type DeckState = {
+export type DeckState = {
   trackName: string | null
   isPlaying: boolean
   volume: number
+  currentTime: number
+  duration: number
+  low: number
+  mid: number
+  high: number
 }
 
 type MixerState = {
   decks: Record<DeckId, DeckState>
   crossfader: number
-  togglePlay: (deckId: DeckId) => void
+  loadTrack: (deckId: DeckId, trackName: string) => void
+  setPlaying: (deckId: DeckId, isPlaying: boolean) => void
   setDeckVolume: (deckId: DeckId, volume: number) => void
+  setDeckTime: (deckId: DeckId, currentTime: number, duration?: number) => void
+  setDeckEq: (deckId: DeckId, band: 'low' | 'mid' | 'high', value: number) => void
   setCrossfader: (value: number) => void
+  reset: () => void
 }
 
-const emptyDeck = (): DeckState => ({ trackName: null, isPlaying: false, volume: 0.8 })
+const emptyDeck = (): DeckState => ({
+  trackName: null,
+  isPlaying: false,
+  volume: 0.8,
+  currentTime: 0,
+  duration: 0,
+  low: 0,
+  mid: 0,
+  high: 0,
+})
+
+const initialState = () => ({
+  decks: { A: emptyDeck(), B: emptyDeck() } as Record<DeckId, DeckState>,
+  crossfader: 0,
+})
 
 export const useMixerStore = create<MixerState>((set) => ({
-  decks: { A: emptyDeck(), B: emptyDeck() },
-  crossfader: 0,
-  togglePlay: (deckId) => set((state) => ({
+  ...initialState(),
+  loadTrack: (deckId, trackName) => set((state) => ({
     decks: {
       ...state.decks,
-      [deckId]: { ...state.decks[deckId], isPlaying: !state.decks[deckId].isPlaying },
+      [deckId]: {
+        ...emptyDeck(),
+        volume: state.decks[deckId].volume,
+        trackName,
+      },
+    },
+  })),
+  setPlaying: (deckId, isPlaying) => set((state) => ({
+    decks: {
+      ...state.decks,
+      [deckId]: { ...state.decks[deckId], isPlaying },
     },
   })),
   setDeckVolume: (deckId, volume) => set((state) => ({
@@ -33,5 +65,22 @@ export const useMixerStore = create<MixerState>((set) => ({
       [deckId]: { ...state.decks[deckId], volume },
     },
   })),
+  setDeckTime: (deckId, currentTime, duration) => set((state) => ({
+    decks: {
+      ...state.decks,
+      [deckId]: {
+        ...state.decks[deckId],
+        currentTime,
+        duration: duration ?? state.decks[deckId].duration,
+      },
+    },
+  })),
+  setDeckEq: (deckId, band, value) => set((state) => ({
+    decks: {
+      ...state.decks,
+      [deckId]: { ...state.decks[deckId], [band]: value },
+    },
+  })),
   setCrossfader: (crossfader) => set({ crossfader }),
+  reset: () => set(initialState()),
 }))
