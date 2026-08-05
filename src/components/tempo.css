@@ -1,55 +1,38 @@
 .tempo-panel {
+  min-width: 0;
   display: grid;
-  gap: 12px;
-  padding: 14px;
-  border: 1px solid #2b3446;
-  border-radius: 12px;
-  background: rgba(7, 10, 16, .62);
+  align-content: start;
+  gap: 8px;
+  padding: 9px;
+  border: 1px solid #293039;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #101318, #080a0d);
 }
 
 .tempo-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  color: #8e99ab;
-  font-size: 11px;
-  letter-spacing: .12em;
+  gap: 8px;
+  color: #7e8894;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: .08em;
 }
-
-.tempo-heading span {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-}
-
-.tempo-heading strong {
-  color: #f5f7fb;
-  font-size: 14px;
-  letter-spacing: .02em;
-}
-
-.tempo-panel input[type="number"] {
-  width: 100%;
-  border: 1px solid #33405a;
-  border-radius: 8px;
-  background: #0c111b;
-  color: #f4f7fb;
-  padding: 8px 10px;
-}
-
+.tempo-heading span { display: flex; align-items: center; gap: 5px; }
+.tempo-heading strong { color: var(--deck-accent); font-size: 11px; letter-spacing: .02em; }
+.tempo-analysis-status { min-height: 22px; color: #65707b; font-size: 7px; line-height: 1.35; }
+.tempo-panel input[type="number"] { width: 100%; padding: 6px 7px; font-size: 9px; }
 .sync-button {
-  border: 1px solid #46577a;
-  border-radius: 9px;
-  background: #18233b;
-  padding: 9px 12px;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: .12em;
+  min-height: 32px;
+  border: 1px solid color-mix(in srgb, var(--deck-accent) 50%, #313841);
+  border-radius: 3px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--deck-accent) 15%, #15191e), #0a0c0f);
+  color: var(--deck-accent);
+  padding: 0 8px;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: .08em;
   cursor: pointer;
 }
-
-.sync-button:not(:disabled):hover {
-  border-color: #7b8cff;
-  background: #243052;
-}
+.sync-button:not(:disabled):hover { border-color: var(--deck-accent); background: color-mix(in srgb, var(--deck-accent) 20%, #0b0d10); }
