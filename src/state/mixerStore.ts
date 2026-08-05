@@ -8,6 +8,8 @@ export type DeckState = {
   isPlaying: boolean
   trim: number
   volume: number
+  bpm: number
+  pitchPercent: number
   currentTime: number
   duration: number
   low: number
@@ -40,6 +42,8 @@ type MixerState = {
   setPlaying: (deckId: DeckId, isPlaying: boolean) => void
   setDeckTrim: (deckId: DeckId, trim: number) => void
   setDeckVolume: (deckId: DeckId, volume: number) => void
+  setDeckBpm: (deckId: DeckId, bpm: number) => void
+  setDeckPitch: (deckId: DeckId, pitchPercent: number) => void
   setDeckTime: (deckId: DeckId, currentTime: number, duration?: number) => void
   setDeckEq: (deckId: DeckId, band: 'low' | 'mid' | 'high', value: number) => void
   setDeckFilter: (deckId: DeckId, value: number) => void
@@ -64,6 +68,8 @@ const emptyDeck = (): DeckState => ({
   isPlaying: false,
   trim: 0,
   volume: 0.8,
+  bpm: 0,
+  pitchPercent: 0,
   currentTime: 0,
   duration: 0,
   low: 0,
@@ -103,6 +109,8 @@ export const useMixerStore = create<MixerState>((set) => ({
         ...emptyDeck(),
         trim: state.decks[deckId].trim,
         volume: state.decks[deckId].volume,
+        bpm: state.decks[deckId].bpm,
+        pitchPercent: state.decks[deckId].pitchPercent,
         cueEnabled: state.decks[deckId].cueEnabled,
         filter: state.decks[deckId].filter,
         echoEnabled: state.decks[deckId].echoEnabled,
@@ -115,49 +123,23 @@ export const useMixerStore = create<MixerState>((set) => ({
       },
     },
   })),
-  setPlaying: (deckId, isPlaying) => set((state) => ({
-    decks: { ...state.decks, [deckId]: { ...state.decks[deckId], isPlaying } },
-  })),
-  setDeckTrim: (deckId, trim) => set((state) => ({
-    decks: { ...state.decks, [deckId]: { ...state.decks[deckId], trim } },
-  })),
-  setDeckVolume: (deckId, volume) => set((state) => ({
-    decks: { ...state.decks, [deckId]: { ...state.decks[deckId], volume } },
-  })),
+  setPlaying: (deckId, isPlaying) => set((state) => ({ decks: { ...state.decks, [deckId]: { ...state.decks[deckId], isPlaying } } })),
+  setDeckTrim: (deckId, trim) => set((state) => ({ decks: { ...state.decks, [deckId]: { ...state.decks[deckId], trim } } })),
+  setDeckVolume: (deckId, volume) => set((state) => ({ decks: { ...state.decks, [deckId]: { ...state.decks[deckId], volume } } })),
+  setDeckBpm: (deckId, bpm) => set((state) => ({ decks: { ...state.decks, [deckId]: { ...state.decks[deckId], bpm } } })),
+  setDeckPitch: (deckId, pitchPercent) => set((state) => ({ decks: { ...state.decks, [deckId]: { ...state.decks[deckId], pitchPercent } } })),
   setDeckTime: (deckId, currentTime, duration) => set((state) => ({
-    decks: {
-      ...state.decks,
-      [deckId]: {
-        ...state.decks[deckId],
-        currentTime,
-        duration: duration ?? state.decks[deckId].duration,
-      },
-    },
+    decks: { ...state.decks, [deckId]: { ...state.decks[deckId], currentTime, duration: duration ?? state.decks[deckId].duration } },
   })),
-  setDeckEq: (deckId, band, value) => set((state) => ({
-    decks: { ...state.decks, [deckId]: { ...state.decks[deckId], [band]: value } },
-  })),
-  setDeckFilter: (deckId, filter) => set((state) => ({
-    decks: { ...state.decks, [deckId]: { ...state.decks[deckId], filter } },
-  })),
-  setDeckEcho: (deckId, patch) => set((state) => ({
-    decks: { ...state.decks, [deckId]: { ...state.decks[deckId], ...patch } },
-  })),
-  setDeckReverb: (deckId, patch) => set((state) => ({
-    decks: { ...state.decks, [deckId]: { ...state.decks[deckId], ...patch } },
-  })),
-  setDeckWaveform: (deckId, waveform) => set((state) => ({
-    decks: { ...state.decks, [deckId]: { ...state.decks[deckId], waveform } },
-  })),
+  setDeckEq: (deckId, band, value) => set((state) => ({ decks: { ...state.decks, [deckId]: { ...state.decks[deckId], [band]: value } } })),
+  setDeckFilter: (deckId, filter) => set((state) => ({ decks: { ...state.decks, [deckId]: { ...state.decks[deckId], filter } } })),
+  setDeckEcho: (deckId, patch) => set((state) => ({ decks: { ...state.decks, [deckId]: { ...state.decks[deckId], ...patch } } })),
+  setDeckReverb: (deckId, patch) => set((state) => ({ decks: { ...state.decks, [deckId]: { ...state.decks[deckId], ...patch } } })),
+  setDeckWaveform: (deckId, waveform) => set((state) => ({ decks: { ...state.decks, [deckId]: { ...state.decks[deckId], waveform } } })),
   setDeckAnalysis: (deckId, isAnalyzing, error = null) => set((state) => ({
-    decks: {
-      ...state.decks,
-      [deckId]: { ...state.decks[deckId], isAnalyzing, analysisError: error },
-    },
+    decks: { ...state.decks, [deckId]: { ...state.decks[deckId], isAnalyzing, analysisError: error } },
   })),
-  setDeckCue: (deckId, cueEnabled) => set((state) => ({
-    decks: { ...state.decks, [deckId]: { ...state.decks[deckId], cueEnabled } },
-  })),
+  setDeckCue: (deckId, cueEnabled) => set((state) => ({ decks: { ...state.decks, [deckId]: { ...state.decks[deckId], cueEnabled } } })),
   setCrossfader: (crossfader) => set({ crossfader }),
   setMasterVolume: (masterVolume) => set({ masterVolume }),
   setCueVolume: (cueVolume) => set({ cueVolume }),
