@@ -1,13 +1,9 @@
 import { Headphones, Music2, Pause, Play, SlidersHorizontal, Upload } from 'lucide-react'
 import { getAudioEngine } from './audio/AudioEngine'
+import { decodeWaveform } from './audio/waveform'
+import { formatTime, progressFromTime, timeFromProgress } from './audio/transport'
+import { Waveform } from './components/Waveform'
 import { useMixerStore, type DeckId } from './state/mixerStore'
-
-const formatTime = (seconds: number) => {
-  if (!Number.isFinite(seconds)) return '00:00'
-  const minutes = Math.floor(seconds / 60)
-  const remainder = Math.floor(seconds % 60)
-  return `${minutes.toString().padStart(2, '0')}:${remainder.toString().padStart(2, '0')}`
-}
 
 function Deck({ side }: { side: DeckId }) {
   const deck = useMixerStore((state) => state.decks[side])
@@ -16,33 +12,62 @@ function Deck({ side }: { side: DeckId }) {
   const setVolume = useMixerStore((state) => state.setDeckVolume)
   const setDeckTime = useMixerStore((state) => state.setDeckTime)
   const setDeckEq = useMixerStore((state) => state.setDeckEq)
+  const setDeckWaveform = useMixerStore((state) => state.setDeckWaveform)
+  const setDeckAnalysis = useMixerStore((state) => state.setDeckAnalysis)
+
+  const engine = getAudioEngine()
+  const progress = progressFromTime(deck.currentTime, deck.duration)
+  const accent = side === 'A' ? '#29b6ff' : '#ff9a3d'
+
+  const seekToProgress = (nextProgress: number) => {
+    const nextTime = timeFromProgress(nextProgress, deck.duration)
+    engine.seek(side, nextTime)
+    setDeckTime(side, nextTime)
+  }
 
   const handleFile = async (file?: File) => {
     if (!file) return
+
     loadTrack(side, file.name)
-    const engine = getAudioEngine()
+    setDeckAnalysis(side, true)
     engine.setDeckVolume(side, deck.volume)
-    await engine.loadFile(side, file, {
-      onTimeUpdate: (currentTime, duration) => setDeckTime(side, currentTime, duration),
-      onEnded: () => setPlaying(side, false),
-    })
+
+    try {
+      const [, waveform] = await Promise.all([
+        engine.loadFile(side, file, {
+          onTimeUpdate: (currentTime, duration) => setDeckTime(side, currentTime, duration),
+          onEnded: () => {
+            setPlaying(side, false)
+            setDeckTime(side, 0)
+          },
+        }),
+        decodeWaveform(file, engine.context),
+      ])
+
+      setDeckWaveform(side, waveform)
+      setDeckAnalysis(side, false)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Audio analysis failed'
+      setDeckAnalysis(side, false, message)
+    }
   }
 
   const togglePlayback = async () => {
     if (!deck.trackName) return
-    const engine = getAudioEngine()
+
     if (deck.isPlaying) {
       engine.pause(side)
       setPlaying(side, false)
-    } else {
-      await engine.play(side)
-      setPlaying(side, true)
+      return
     }
+
+    await engine.play(side)
+    setPlaying(side, true)
   }
 
   const changeEq = (band: 'low' | 'mid' | 'high', value: number) => {
     setDeckEq(side, band, value)
-    getAudioEngine().setEq(side, band, value)
+    engine.setEq(side, band, value)
   }
 
   return (
@@ -52,10 +77,19 @@ function Deck({ side }: { side: DeckId }) {
         <strong>{deck.trackName ?? 'No track loaded'}</strong>
       </div>
 
-      <div className="waveform-placeholder">
-        <span>{formatTime(deck.currentTime)}</span>
-        <span>WAVEFORM COMING NEXT</span>
-        <span>{formatTime(deck.duration)}</span>
+      <div className="waveform-panel">
+        <div className="time-readout">
+          <span>{formatTime(deck.currentTime)}</span>
+          <span>{deck.isAnalyzing ? 'ANALYZING AUDIO…' : deck.analysisError ?? 'WAVEFORM'}</span>
+          <span>{formatTime(deck.duration)}</span>
+        </div>
+        <Waveform
+          peaks={deck.waveform}
+          progress={progress}
+          accent={accent}
+          label={`Waveform deck ${side}`}
+          onSeek={seekToProgress}
+        />
       </div>
 
       <input
@@ -68,7 +102,7 @@ function Deck({ side }: { side: DeckId }) {
         disabled={!deck.duration}
         onChange={(event) => {
           const value = Number(event.target.value)
-          getAudioEngine().seek(side, value)
+          engine.seek(side, value)
           setDeckTime(side, value)
         }}
       />
@@ -116,7 +150,7 @@ function Deck({ side }: { side: DeckId }) {
           onChange={(event) => {
             const value = Number(event.target.value)
             setVolume(side, value)
-            getAudioEngine().setDeckVolume(side, value)
+            engine.setDeckVolume(side, value)
           }}
         />
       </label>
