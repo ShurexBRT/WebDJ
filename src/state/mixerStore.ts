@@ -11,6 +11,9 @@ export type DeckState = {
   low: number
   mid: number
   high: number
+  waveform: number[]
+  isAnalyzing: boolean
+  analysisError: string | null
 }
 
 type MixerState = {
@@ -21,6 +24,8 @@ type MixerState = {
   setDeckVolume: (deckId: DeckId, volume: number) => void
   setDeckTime: (deckId: DeckId, currentTime: number, duration?: number) => void
   setDeckEq: (deckId: DeckId, band: 'low' | 'mid' | 'high', value: number) => void
+  setDeckWaveform: (deckId: DeckId, waveform: number[]) => void
+  setDeckAnalysis: (deckId: DeckId, isAnalyzing: boolean, error?: string | null) => void
   setCrossfader: (value: number) => void
   reset: () => void
 }
@@ -34,6 +39,9 @@ const emptyDeck = (): DeckState => ({
   low: 0,
   mid: 0,
   high: 0,
+  waveform: [],
+  isAnalyzing: false,
+  analysisError: null,
 })
 
 const initialState = () => ({
@@ -54,16 +62,10 @@ export const useMixerStore = create<MixerState>((set) => ({
     },
   })),
   setPlaying: (deckId, isPlaying) => set((state) => ({
-    decks: {
-      ...state.decks,
-      [deckId]: { ...state.decks[deckId], isPlaying },
-    },
+    decks: { ...state.decks, [deckId]: { ...state.decks[deckId], isPlaying } },
   })),
   setDeckVolume: (deckId, volume) => set((state) => ({
-    decks: {
-      ...state.decks,
-      [deckId]: { ...state.decks[deckId], volume },
-    },
+    decks: { ...state.decks, [deckId]: { ...state.decks[deckId], volume } },
   })),
   setDeckTime: (deckId, currentTime, duration) => set((state) => ({
     decks: {
@@ -76,9 +78,15 @@ export const useMixerStore = create<MixerState>((set) => ({
     },
   })),
   setDeckEq: (deckId, band, value) => set((state) => ({
+    decks: { ...state.decks, [deckId]: { ...state.decks[deckId], [band]: value } },
+  })),
+  setDeckWaveform: (deckId, waveform) => set((state) => ({
+    decks: { ...state.decks, [deckId]: { ...state.decks[deckId], waveform } },
+  })),
+  setDeckAnalysis: (deckId, isAnalyzing, error = null) => set((state) => ({
     decks: {
       ...state.decks,
-      [deckId]: { ...state.decks[deckId], [band]: value },
+      [deckId]: { ...state.decks[deckId], isAnalyzing, analysisError: error },
     },
   })),
   setCrossfader: (crossfader) => set({ crossfader }),
