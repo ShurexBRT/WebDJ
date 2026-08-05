@@ -1,23 +1,26 @@
 .beat-grid-controls {
   display: grid;
-  align-content: start;
-  gap: 7px;
-  padding: 8px;
+  grid-template-columns: minmax(0, 1fr) 112px;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 7px;
   border: 1px solid #293039;
-  border-radius: 4px;
+  border-radius: 3px;
   background: linear-gradient(180deg, #0f1216, #080a0d);
 }
-.beat-grid-controls > div:first-child { display: grid; gap: 3px; font-size: 8px; }
-.beat-grid-controls strong { color: #9ba4af; letter-spacing: .08em; }
-.beat-grid-controls span { color: #626d78; font-size: 7px; }
-.beat-grid-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+
+.beat-grid-status { min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.beat-grid-status span { display: flex; align-items: center; gap: 4px; color: #737d88; font-size: 6px; font-weight: 900; letter-spacing: .09em; }
+.beat-grid-status strong { color: var(--deck-accent); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 8px; white-space: nowrap; }
+
+.beat-grid-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; }
 .beat-grid-actions button {
-  min-height: 28px;
+  min-height: 25px;
   border-radius: 3px;
   border: 1px solid #303741;
   background: linear-gradient(180deg, #161a1f, #0a0c0f);
   color: #9aa3ad;
-  font-size: 7px;
+  font-size: 6px;
   font-weight: 900;
   cursor: pointer;
 }
