@@ -21,8 +21,8 @@ export function levelFromRms(rms: number): number {
   return clampLevel((db + 60) / 60)
 }
 
-export function readAnalyserLevel(analyser: AnalyserNode, buffer: Uint8Array<ArrayBuffer>): number {
-  analyser.getByteTimeDomainData(buffer)
+export function readAnalyserLevel(analyser: AnalyserNode, buffer: Uint8Array): number {
+  analyser.getByteTimeDomainData(buffer as Uint8Array<ArrayBuffer>)
   return levelFromRms(rmsFromTimeDomain(buffer))
 }
 
