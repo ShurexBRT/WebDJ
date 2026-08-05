@@ -13,6 +13,13 @@ export type DeckState = {
   low: number
   mid: number
   high: number
+  filter: number
+  echoEnabled: boolean
+  echoMix: number
+  echoTimeMs: number
+  echoFeedback: number
+  reverbEnabled: boolean
+  reverbMix: number
   waveform: number[]
   isAnalyzing: boolean
   analysisError: string | null
@@ -35,6 +42,9 @@ type MixerState = {
   setDeckVolume: (deckId: DeckId, volume: number) => void
   setDeckTime: (deckId: DeckId, currentTime: number, duration?: number) => void
   setDeckEq: (deckId: DeckId, band: 'low' | 'mid' | 'high', value: number) => void
+  setDeckFilter: (deckId: DeckId, value: number) => void
+  setDeckEcho: (deckId: DeckId, patch: Partial<Pick<DeckState, 'echoEnabled' | 'echoMix' | 'echoTimeMs' | 'echoFeedback'>>) => void
+  setDeckReverb: (deckId: DeckId, patch: Partial<Pick<DeckState, 'reverbEnabled' | 'reverbMix'>>) => void
   setDeckWaveform: (deckId: DeckId, waveform: number[]) => void
   setDeckAnalysis: (deckId: DeckId, isAnalyzing: boolean, error?: string | null) => void
   setDeckCue: (deckId: DeckId, enabled: boolean) => void
@@ -59,6 +69,13 @@ const emptyDeck = (): DeckState => ({
   low: 0,
   mid: 0,
   high: 0,
+  filter: 0,
+  echoEnabled: false,
+  echoMix: 0.3,
+  echoTimeMs: 375,
+  echoFeedback: 0.35,
+  reverbEnabled: false,
+  reverbMix: 0.22,
   waveform: [],
   isAnalyzing: false,
   analysisError: null,
@@ -87,6 +104,13 @@ export const useMixerStore = create<MixerState>((set) => ({
         trim: state.decks[deckId].trim,
         volume: state.decks[deckId].volume,
         cueEnabled: state.decks[deckId].cueEnabled,
+        filter: state.decks[deckId].filter,
+        echoEnabled: state.decks[deckId].echoEnabled,
+        echoMix: state.decks[deckId].echoMix,
+        echoTimeMs: state.decks[deckId].echoTimeMs,
+        echoFeedback: state.decks[deckId].echoFeedback,
+        reverbEnabled: state.decks[deckId].reverbEnabled,
+        reverbMix: state.decks[deckId].reverbMix,
         trackName,
       },
     },
@@ -112,6 +136,15 @@ export const useMixerStore = create<MixerState>((set) => ({
   })),
   setDeckEq: (deckId, band, value) => set((state) => ({
     decks: { ...state.decks, [deckId]: { ...state.decks[deckId], [band]: value } },
+  })),
+  setDeckFilter: (deckId, filter) => set((state) => ({
+    decks: { ...state.decks, [deckId]: { ...state.decks[deckId], filter } },
+  })),
+  setDeckEcho: (deckId, patch) => set((state) => ({
+    decks: { ...state.decks, [deckId]: { ...state.decks[deckId], ...patch } },
+  })),
+  setDeckReverb: (deckId, patch) => set((state) => ({
+    decks: { ...state.decks, [deckId]: { ...state.decks[deckId], ...patch } },
   })),
   setDeckWaveform: (deckId, waveform) => set((state) => ({
     decks: { ...state.decks, [deckId]: { ...state.decks[deckId], waveform } },
