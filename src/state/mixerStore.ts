@@ -1,11 +1,23 @@
 import { create } from 'zustand'
 import type { AudioOutputDevice } from '../audio/routing'
+import type { SessionSettings } from '../storage/sessionSettings'
+import type { TrackProfile } from '../storage/trackProfiles'
 
 export type DeckId = 'A' | 'B'
 export type BpmAnalysisStatus = 'idle' | 'analyzing' | 'detected' | 'manual' | 'failed'
+export type LoopBeats = 1 | 2 | 4 | 8 | 16
+
+export type TrackHistoryItem = {
+  id: string
+  name: string
+  lastLoadedAt: number
+}
 
 export type DeckState = {
+  trackId: string | null
   trackName: string | null
+  fileSize: number
+  lastModified: number
   isPlaying: boolean
   trim: number
   volume: number
@@ -31,10 +43,14 @@ export type DeckState = {
   isAnalyzing: boolean
   analysisError: string | null
   cueEnabled: boolean
+  cuePoint: number | null
+  hotCues: Array<number | null>
+  loopBeats: LoopBeats
 }
 
 type MixerState = {
   decks: Record<DeckId, DeckState>
+  trackHistory: TrackHistoryItem[]
   crossfader: number
   masterDeck: DeckId | null
   quantizeEnabled: boolean
@@ -46,6 +62,9 @@ type MixerState = {
   cueOutputId: string
   outputSelectionSupported: boolean
   loadTrack: (deckId: DeckId, trackName: string) => void
+  setDeckIdentity: (deckId: DeckId, trackId: string, fileSize: number, lastModified: number) => void
+  restoreDeckProfile: (deckId: DeckId, profile: TrackProfile) => void
+  restoreSession: (settings: SessionSettings) => void
   setPlaying: (deckId: DeckId, isPlaying: boolean) => void
   setDeckTrim: (deckId: DeckId, trim: number) => void
   setDeckVolume: (deckId: DeckId, volume: number) => void
@@ -62,6 +81,9 @@ type MixerState = {
   setDeckWaveform: (deckId: DeckId, waveform: number[]) => void
   setDeckAnalysis: (deckId: DeckId, isAnalyzing: boolean, error?: string | null) => void
   setDeckCue: (deckId: DeckId, enabled: boolean) => void
+  setDeckCuePoint: (deckId: DeckId, time: number | null) => void
+  setDeckHotCue: (deckId: DeckId, index: number, time: number | null) => void
+  setDeckLoopBeats: (deckId: DeckId, beats: LoopBeats) => void
   setCrossfader: (value: number) => void
   setMasterDeck: (deckId: DeckId | null) => void
   setQuantizeEnabled: (enabled: boolean) => void
@@ -76,7 +98,10 @@ type MixerState = {
 }
 
 const emptyDeck = (): DeckState => ({
+  trackId: null,
   trackName: null,
+  fileSize: 0,
+  lastModified: 0,
   isPlaying: false,
   trim: 0,
   volume: 0.8,
@@ -102,10 +127,14 @@ const emptyDeck = (): DeckState => ({
   isAnalyzing: false,
   analysisError: null,
   cueEnabled: false,
+  cuePoint: null,
+  hotCues: Array.from({ length: 6 }, () => null),
+  loopBeats: 4,
 })
 
 const initialState = () => ({
   decks: { A: emptyDeck(), B: emptyDeck() } as Record<DeckId, DeckState>,
+  trackHistory: [] as TrackHistoryItem[],
   crossfader: 0,
   masterDeck: null as DeckId | null,
   quantizeEnabled: true,
@@ -140,6 +169,44 @@ export const useMixerStore = create<MixerState>((set) => ({
       },
     },
   })),
+  setDeckIdentity: (deckId, trackId, fileSize, lastModified) => set((state) => {
+    const trackName = state.decks[deckId].trackName ?? 'Unknown track'
+    const nextHistory = [
+      { id: trackId, name: trackName, lastLoadedAt: Date.now() },
+      ...state.trackHistory.filter((item) => item.id !== trackId),
+    ].slice(0, 50)
+    return {
+      decks: { ...state.decks, [deckId]: { ...state.decks[deckId], trackId, fileSize, lastModified } },
+      trackHistory: nextHistory,
+    }
+  }),
+  restoreDeckProfile: (deckId, profile) => set((state) => ({
+    decks: {
+      ...state.decks,
+      [deckId]: {
+        ...state.decks[deckId],
+        bpm: profile.bpm,
+        bpmConfidence: profile.bpmConfidence,
+        bpmAnalysisStatus: profile.bpmAnalysisStatus,
+        beatOffsetSeconds: profile.beatOffsetSeconds,
+        barOffsetBeats: profile.barOffsetBeats,
+        waveform: profile.waveform,
+        cuePoint: profile.cuePoint,
+        hotCues: [...profile.hotCues, ...Array.from({ length: 6 }, () => null)].slice(0, 6),
+        loopBeats: profile.loopBeats,
+        isAnalyzing: false,
+        analysisError: null,
+      },
+    },
+  })),
+  restoreSession: (settings) => set({
+    crossfader: settings.crossfader,
+    masterDeck: settings.masterDeck,
+    quantizeEnabled: settings.quantizeEnabled,
+    masterVolume: settings.masterVolume,
+    cueVolume: settings.cueVolume,
+    cueMix: settings.cueMix,
+  }),
   setPlaying: (deckId, isPlaying) => set((state) => ({ decks: { ...state.decks, [deckId]: { ...state.decks[deckId], isPlaying } } })),
   setDeckTrim: (deckId, trim) => set((state) => ({ decks: { ...state.decks, [deckId]: { ...state.decks[deckId], trim } } })),
   setDeckVolume: (deckId, volume) => set((state) => ({ decks: { ...state.decks, [deckId]: { ...state.decks[deckId], volume } } })),
@@ -176,6 +243,17 @@ export const useMixerStore = create<MixerState>((set) => ({
     decks: { ...state.decks, [deckId]: { ...state.decks[deckId], isAnalyzing, analysisError: error } },
   })),
   setDeckCue: (deckId, cueEnabled) => set((state) => ({ decks: { ...state.decks, [deckId]: { ...state.decks[deckId], cueEnabled } } })),
+  setDeckCuePoint: (deckId, cuePoint) => set((state) => ({
+    decks: { ...state.decks, [deckId]: { ...state.decks[deckId], cuePoint } },
+  })),
+  setDeckHotCue: (deckId, index, time) => set((state) => {
+    if (index < 0 || index >= 6) return state
+    const hotCues = state.decks[deckId].hotCues.map((value, itemIndex) => itemIndex === index ? time : value)
+    return { decks: { ...state.decks, [deckId]: { ...state.decks[deckId], hotCues } } }
+  }),
+  setDeckLoopBeats: (deckId, loopBeats) => set((state) => ({
+    decks: { ...state.decks, [deckId]: { ...state.decks[deckId], loopBeats } },
+  })),
   setCrossfader: (crossfader) => set({ crossfader }),
   setMasterDeck: (masterDeck) => set({ masterDeck }),
   setQuantizeEnabled: (quantizeEnabled) => set({ quantizeEnabled }),
