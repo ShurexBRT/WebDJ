@@ -1,57 +1,15 @@
-import { FolderOpen, Headphones, History, ListMusic, Search, Sparkles, Trash2, Upload } from 'lucide-react'
+import { FolderOpen, History, ListMusic, Search, Sparkles, Trash2, Upload } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { effectiveBpm } from '../audio/tempo'
-import { formatTime } from '../audio/transport'
 import { getAudioEngine } from '../audio/AudioEngine'
 import { AudioSettings } from '../features/settings/AudioSettings'
 import { useLibraryStore } from '../state/libraryStore'
 import { useMixerStore, type DeckId } from '../state/mixerStore'
 import { KnobControl } from './KnobControl'
+import { SamplerPanel } from './SamplerPanel'
 import './library.css'
 
 const deckIds: DeckId[] = ['A', 'B']
-const samplePads = [
-  { name: 'Kick', tone: 62, duration: .22, kind: 'sine' as OscillatorType, className: 'red' },
-  { name: 'Clap', tone: 0, duration: .11, kind: 'noise' as const, className: 'orange' },
-  { name: 'Hat', tone: 0, duration: .055, kind: 'noise' as const, className: 'yellow' },
-  { name: 'Snare', tone: 170, duration: .12, kind: 'triangle' as OscillatorType, className: 'green' },
-  { name: 'Bass', tone: 96, duration: .28, kind: 'sawtooth' as OscillatorType, className: 'cyan' },
-  { name: 'Synth', tone: 330, duration: .3, kind: 'square' as OscillatorType, className: 'blue' },
-  { name: 'Vocal', tone: 440, duration: .36, kind: 'sine' as OscillatorType, className: 'purple' },
-  { name: 'FX Rise', tone: 540, duration: .42, kind: 'sawtooth' as OscillatorType, className: 'pink' },
-  { name: 'Impact', tone: 48, duration: .5, kind: 'triangle' as OscillatorType, className: 'magenta' },
-]
-
-function triggerTone(context: AudioContext, frequency: number, duration: number, type: OscillatorType, rising = false) {
-  const oscillator = context.createOscillator()
-  const gain = context.createGain()
-  oscillator.type = type
-  oscillator.frequency.setValueAtTime(frequency, context.currentTime)
-  if (rising) oscillator.frequency.exponentialRampToValueAtTime(Math.max(frequency * 2.4, frequency + 1), context.currentTime + duration)
-  else oscillator.frequency.exponentialRampToValueAtTime(Math.max(28, frequency * .55), context.currentTime + duration)
-  gain.gain.setValueAtTime(.22, context.currentTime)
-  gain.gain.exponentialRampToValueAtTime(.0001, context.currentTime + duration)
-  oscillator.connect(gain).connect(context.destination)
-  oscillator.start()
-  oscillator.stop(context.currentTime + duration)
-}
-
-function triggerNoise(context: AudioContext, duration: number, bright = false) {
-  const length = Math.max(1, Math.floor(context.sampleRate * duration))
-  const buffer = context.createBuffer(1, length, context.sampleRate)
-  const data = buffer.getChannelData(0)
-  for (let index = 0; index < data.length; index += 1) data[index] = Math.random() * 2 - 1
-  const source = context.createBufferSource()
-  const filter = context.createBiquadFilter()
-  const gain = context.createGain()
-  source.buffer = buffer
-  filter.type = bright ? 'highpass' : 'bandpass'
-  filter.frequency.value = bright ? 6200 : 1800
-  gain.gain.setValueAtTime(bright ? .12 : .18, context.currentTime)
-  gain.gain.exponentialRampToValueAtTime(.0001, context.currentTime + duration)
-  source.connect(filter).connect(gain).connect(context.destination)
-  source.start()
-}
 
 const formatBytes = (bytes: number) => {
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`
@@ -90,18 +48,6 @@ export function StudioDock() {
     return libraryTracks.filter((track) => [track.title, track.artist, track.album, track.genre, track.fileName]
       .some((value) => value.toLowerCase().includes(needle)))
   }, [libraryTracks, query])
-
-  const playSample = async (name: string) => {
-    const sample = samplePads.find((item) => item.name === name)
-    if (!sample) return
-    await engine.initialize()
-    if (engine.context.state === 'suspended') await engine.context.resume()
-    if (sample.kind === 'noise') {
-      triggerNoise(engine.context, sample.duration, sample.name === 'Hat')
-      return
-    }
-    triggerTone(engine.context, sample.tone, sample.duration, sample.kind, sample.name === 'FX Rise')
-  }
 
   return (
     <section className="studio-dock" id="library-dock" aria-label="Studio library and routing">
@@ -173,12 +119,7 @@ export function StudioDock() {
         </div>
       </section>
 
-      <section className="sampler-panel" id="sampler-panel" aria-label="Sampler panel">
-        <div className="dock-tabs"><button className="active" type="button">SAMPLER</button><button type="button" disabled>AUTOMIX</button><button type="button" onClick={() => document.getElementById('recorder-panel')?.scrollIntoView({ behavior: 'smooth' })}>RECORDER</button></div>
-        <div className="sampler-grid">
-          {samplePads.map((pad) => <button key={pad.name} className={`sampler-pad ${pad.className}`} type="button" onClick={() => playSample(pad.name)}>{pad.name}</button>)}
-        </div>
-      </section>
+      <SamplerPanel />
 
       <section className="headphone-panel" id="audio-routing" aria-label="Cue mix headphones">
         <div className="dock-tabs"><span>CUE MIX (HEADPHONES)</span></div>
