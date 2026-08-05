@@ -5,6 +5,7 @@ import { formatTime, progressFromTime, timeFromProgress } from '../../audio/tran
 import { decodeWaveform } from '../../audio/waveform'
 import { EffectsPanel } from '../../components/EffectsPanel'
 import { LevelMeter } from '../../components/LevelMeter'
+import { TempoControls } from '../../components/TempoControls'
 import { Waveform } from '../../components/Waveform'
 import { useMixerStore, type DeckId } from '../../state/mixerStore'
 
@@ -34,6 +35,7 @@ export function Deck({ side }: { side: DeckId }) {
     if (!file) return
     loadTrack(side, file.name)
     setDeckAnalysis(side, true)
+    engine.setDeckPitch(side, deck.pitchPercent)
     engine.setDeckTrim(side, deck.trim)
     engine.setDeckVolume(side, deck.volume)
     engine.setDeckFilter(side, deck.filter)
@@ -81,6 +83,7 @@ export function Deck({ side }: { side: DeckId }) {
         <button className="transport-button" onClick={togglePlayback} disabled={!deck.trackName} aria-label={`${deck.isPlaying ? 'Pause' : 'Play'} deck ${side}`}>{deck.isPlaying ? <Pause /> : <Play />}</button>
         <button className={`cue-button${deck.cueEnabled ? ' active' : ''}`} onClick={async () => { await engine.initialize(); const enabled = !deck.cueEnabled; setDeckCue(side, enabled); engine.setDeckCue(side, enabled) }} aria-pressed={deck.cueEnabled} aria-label={`Cue deck ${side}`}><Headphones size={18} /> CUE</button>
       </div>
+      <TempoControls deckId={side} />
       <div className="channel-strip">
         <LevelMeter label={`Deck ${side} level`} readLevel={readLevel} />
         <div className="channel-controls">
