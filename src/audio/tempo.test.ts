@@ -3,6 +3,7 @@ import {
   clampPitchPercent,
   effectiveBpm,
   normalizeBpm,
+  normalizePitchPercent,
   pitchToMatchBpm,
   playbackRateFromPitch,
 } from './tempo'
@@ -19,13 +20,19 @@ describe('tempo helpers', () => {
     expect(clampPitchPercent(-22)).toBe(-16)
   })
 
+  it('normalizes pitch to the supported UI step', () => {
+    expect(normalizePitchPercent(-0.159999999999)).toBe(-0.2)
+    expect(normalizePitchPercent(4.04)).toBe(4)
+  })
+
   it('calculates effective BPM', () => {
     expect(effectiveBpm(120, 5)).toBe(126)
     expect(effectiveBpm(0, 5)).toBe(0)
   })
 
   it('calculates pitch required to match another deck', () => {
-    expect(pitchToMatchBpm(120, 126)).toBeCloseTo(5)
+    expect(pitchToMatchBpm(120, 126)).toBe(5)
+    expect(pitchToMatchBpm(125, 124.8)).toBe(-0.2)
     expect(pitchToMatchBpm(0, 126)).toBeNull()
   })
 
