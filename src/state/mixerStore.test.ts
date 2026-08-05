@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
+import type { TrackProfile } from '../storage/trackProfiles'
 import { useMixerStore } from './mixerStore'
 
 describe('mixer store', () => {
@@ -18,12 +19,16 @@ describe('mixer store', () => {
 
     const deck = useMixerStore.getState().decks.A
     expect(deck.trackName).toBe('track-a.mp3')
+    expect(deck.trackId).toBeNull()
     expect(deck.trim).toBe(6)
     expect(deck.volume).toBe(0.42)
     expect(deck.bpm).toBe(0)
     expect(deck.bpmAnalysisStatus).toBe('idle')
     expect(deck.beatOffsetSeconds).toBe(0)
     expect(deck.barOffsetBeats).toBe(0)
+    expect(deck.cuePoint).toBeNull()
+    expect(deck.hotCues).toEqual([null, null, null, null, null, null])
+    expect(deck.loopBeats).toBe(4)
     expect(deck.pitchPercent).toBe(3.5)
     expect(deck.cueEnabled).toBe(true)
     expect(deck.filter).toBe(-0.5)
@@ -72,6 +77,51 @@ describe('mixer store', () => {
     expect(useMixerStore.getState().decks.B.reverbEnabled).toBe(true)
   })
 
+  it('restores a cached profile without overwriting mixer controls', () => {
+    const profile: TrackProfile = {
+      id: 'track-1',
+      fileName: 'cached.wav',
+      fileSize: 100,
+      lastModified: 20,
+      bpm: 126,
+      bpmConfidence: 0.91,
+      bpmAnalysisStatus: 'detected',
+      beatOffsetSeconds: 0.08,
+      barOffsetBeats: 2,
+      waveform: [0.2, 0.7],
+      cuePoint: 4,
+      hotCues: [4, 8, null, null, null, null],
+      loopBeats: 8,
+      updatedAt: 30,
+    }
+    useMixerStore.getState().loadTrack('A', profile.fileName)
+    useMixerStore.getState().setDeckVolume('A', 0.33)
+    useMixerStore.getState().setDeckIdentity('A', profile.id, profile.fileSize, profile.lastModified)
+    useMixerStore.getState().restoreDeckProfile('A', profile)
+
+    const deck = useMixerStore.getState().decks.A
+    expect(deck.trackId).toBe('track-1')
+    expect(deck.volume).toBe(0.33)
+    expect(deck.bpm).toBe(126)
+    expect(deck.waveform).toEqual([0.2, 0.7])
+    expect(deck.cuePoint).toBe(4)
+    expect(deck.hotCues).toEqual([4, 8, null, null, null, null])
+    expect(deck.loopBeats).toBe(8)
+    expect(useMixerStore.getState().trackHistory[0]).toMatchObject({ id: 'track-1', name: 'cached.wav' })
+  })
+
+  it('updates persistent cue slots independently', () => {
+    useMixerStore.getState().setDeckCuePoint('A', 6.5)
+    useMixerStore.getState().setDeckHotCue('A', 2, 12)
+    useMixerStore.getState().setDeckHotCue('B', 2, 18)
+    useMixerStore.getState().setDeckLoopBeats('B', 16)
+
+    expect(useMixerStore.getState().decks.A.cuePoint).toBe(6.5)
+    expect(useMixerStore.getState().decks.A.hotCues[2]).toBe(12)
+    expect(useMixerStore.getState().decks.B.hotCues[2]).toBe(18)
+    expect(useMixerStore.getState().decks.B.loopBeats).toBe(16)
+  })
+
   it('updates EQ and playback position', () => {
     useMixerStore.getState().setDeckEq('B', 'low', -12)
     useMixerStore.getState().setDeckTime('B', 15, 180)
@@ -95,14 +145,24 @@ describe('mixer store', () => {
     expect(state.cueOutputId).toBe('headphones')
   })
 
-  it('tracks tempo master and global quantize without touching the crossfader', () => {
-    useMixerStore.getState().setCrossfader(0.35)
-    useMixerStore.getState().setMasterDeck('B')
-    useMixerStore.getState().setQuantizeEnabled(false)
+  it('restores versioned session settings without touching outputs', () => {
+    useMixerStore.getState().setMasterOutputId('speakers')
+    useMixerStore.getState().restoreSession({
+      version: 1,
+      crossfader: -0.4,
+      masterDeck: 'A',
+      quantizeEnabled: false,
+      masterVolume: 0.7,
+      cueVolume: 0.4,
+      cueMix: 0.6,
+      trackHistory: [],
+    })
 
     const state = useMixerStore.getState()
-    expect(state.masterDeck).toBe('B')
+    expect(state.crossfader).toBe(-0.4)
+    expect(state.masterDeck).toBe('A')
     expect(state.quantizeEnabled).toBe(false)
-    expect(state.crossfader).toBe(0.35)
+    expect(state.masterVolume).toBe(0.7)
+    expect(state.masterOutputId).toBe('speakers')
   })
 })
