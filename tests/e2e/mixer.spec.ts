@@ -56,7 +56,7 @@ test('changes gain and mixer controls without coupling the decks', async ({ page
 
 test('sets pitch independently and syncs one deck BPM to the other', async ({ page }) => {
   await page.goto('/')
-  const syncB = page.getByTestId('deck-B').locator('.sync-button')
+  const syncB = page.getByRole('button', { name: 'Sync deck B to deck A', exact: true })
 
   await expect(syncB).toBeDisabled()
   await page.getByLabel('BPM deck A', { exact: true }).fill('120')
