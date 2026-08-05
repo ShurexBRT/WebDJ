@@ -3,12 +3,12 @@ export function clampLevel(value: number): number {
   return Math.min(1, Math.max(0, value))
 }
 
-export function rmsFromTimeDomain(samples: Uint8Array): number {
+export function rmsFromTimeDomain(samples: ArrayLike<number>): number {
   if (samples.length === 0) return 0
 
   let sum = 0
-  for (const sample of samples) {
-    const normalized = (sample - 128) / 128
+  for (let index = 0; index < samples.length; index += 1) {
+    const normalized = (samples[index] - 128) / 128
     sum += normalized * normalized
   }
 
@@ -21,7 +21,7 @@ export function levelFromRms(rms: number): number {
   return clampLevel((db + 60) / 60)
 }
 
-export function readAnalyserLevel(analyser: AnalyserNode, buffer: Uint8Array): number {
+export function readAnalyserLevel(analyser: AnalyserNode, buffer: Uint8Array<ArrayBuffer>): number {
   analyser.getByteTimeDomainData(buffer)
   return levelFromRms(rmsFromTimeDomain(buffer))
 }
