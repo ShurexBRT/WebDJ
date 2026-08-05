@@ -7,7 +7,7 @@ test('shows independent cue point and loop controls for both decks', async ({ pa
   await expect(page.getByRole('region', { name: 'Cue and loop deck B' })).toBeVisible()
   await expect(page.getByLabel('Set cue point deck A')).toBeDisabled()
   await expect(page.getByLabel('Return to cue point deck A')).toBeDisabled()
-  await expect(page.getByLabel('Loop deck A')).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'Loop deck A', exact: true })).toBeDisabled()
   await expect(page.getByLabel('4 beat loop deck A')).toHaveAttribute('aria-pressed', 'true')
   await expect(page.getByLabel('4 beat loop deck B')).toHaveAttribute('aria-pressed', 'true')
 })
