@@ -25,6 +25,8 @@ test('renders the complete dual-deck workspace', async ({ page }) => {
   await expect(page.getByRole('region', { name: 'Tempo deck B', exact: true })).toBeVisible()
   await expect(page.getByLabel('BPM analysis deck A', { exact: true })).toContainText('Load a track for auto BPM')
   await expect(page.getByLabel('BPM analysis deck B', { exact: true })).toContainText('Load a track for auto BPM')
+  await expect(page.getByRole('button', { name: 'Nudge deck A slower', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Nudge deck B faster', exact: true })).toBeVisible()
 })
 
 test('loads independent local files into both decks', async ({ page }) => {
@@ -54,8 +56,25 @@ test('changes gain and mixer controls without coupling the decks', async ({ page
   await expect(page.getByLabel('Crossfader', { exact: true })).toHaveValue('1')
 })
 
-test('sets pitch independently and syncs one deck BPM to the other', async ({ page }) => {
+test('sets a real tempo master without touching the crossfader', async ({ page }) => {
   await page.goto('/')
+  const masterA = page.getByRole('button', { name: 'Make deck A master', exact: true })
+  const masterB = page.getByRole('button', { name: 'Make deck B master', exact: true })
+
+  await masterA.click()
+  await expect(masterA).toHaveAttribute('aria-pressed', 'true')
+  await expect(masterB).toHaveAttribute('aria-pressed', 'false')
+  await expect(page.getByLabel('Crossfader', { exact: true })).toHaveValue('0')
+
+  await masterB.click()
+  await expect(masterA).toHaveAttribute('aria-pressed', 'false')
+  await expect(masterB).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByLabel('Crossfader', { exact: true })).toHaveValue('0')
+})
+
+test('sets pitch independently and syncs one deck BPM to the master deck', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Make deck A master', exact: true }).click()
   const syncB = page.getByRole('button', { name: 'Sync deck B to deck A', exact: true })
 
   await expect(syncB).toBeDisabled()
