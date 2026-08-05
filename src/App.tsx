@@ -1,4 +1,5 @@
-import { Headphones, Music2, Pause, Play, SlidersHorizontal, Upload } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
+import { Headphones, Music2, Pause, Play, RefreshCw, SlidersHorizontal, Upload } from 'lucide-react'
 import { getAudioEngine } from './audio/AudioEngine'
 import { decodeWaveform } from './audio/waveform'
 import { formatTime, progressFromTime, timeFromProgress } from './audio/transport'
@@ -14,6 +15,7 @@ function Deck({ side }: { side: DeckId }) {
   const setDeckEq = useMixerStore((state) => state.setDeckEq)
   const setDeckWaveform = useMixerStore((state) => state.setDeckWaveform)
   const setDeckAnalysis = useMixerStore((state) => state.setDeckAnalysis)
+  const setDeckCue = useMixerStore((state) => state.setDeckCue)
 
   const engine = getAudioEngine()
   const progress = progressFromTime(deck.currentTime, deck.duration)
@@ -70,6 +72,13 @@ function Deck({ side }: { side: DeckId }) {
     engine.setEq(side, band, value)
   }
 
+  const toggleCue = async () => {
+    await engine.initialize()
+    const enabled = !deck.cueEnabled
+    setDeckCue(side, enabled)
+    engine.setDeckCue(side, enabled)
+  }
+
   return (
     <section className={`deck deck-${side.toLowerCase()}`} data-testid={`deck-${side}`}>
       <div className="deck-heading">
@@ -116,7 +125,12 @@ function Deck({ side }: { side: DeckId }) {
         >
           {deck.isPlaying ? <Pause /> : <Play />}
         </button>
-        <button className="cue-button" disabled title="Cue routing is the next audio milestone">
+        <button
+          className={`cue-button${deck.cueEnabled ? ' active' : ''}`}
+          onClick={toggleCue}
+          aria-pressed={deck.cueEnabled}
+          aria-label={`Cue deck ${side}`}
+        >
           <Headphones size={18} /> CUE
         </button>
       </div>
@@ -168,22 +182,173 @@ function Deck({ side }: { side: DeckId }) {
   )
 }
 
+function AudioSettings() {
+  const devices = useMixerStore((state) => state.outputDevices)
+  const masterOutputId = useMixerStore((state) => state.masterOutputId)
+  const cueOutputId = useMixerStore((state) => state.cueOutputId)
+  const outputSelectionSupported = useMixerStore((state) => state.outputSelectionSupported)
+  const setDevices = useMixerStore((state) => state.setOutputDevices)
+  const setMasterOutputId = useMixerStore((state) => state.setMasterOutputId)
+  const setCueOutputId = useMixerStore((state) => state.setCueOutputId)
+  const setOutputSelectionSupported = useMixerStore((state) => state.setOutputSelectionSupported)
+  const [message, setMessage] = useState('')
+  const engine = getAudioEngine()
+
+  const refreshDevices = useCallback(async (requestAccess = false) => {
+    try {
+      const nextDevices = requestAccess ? await engine.requestOutputAccess() : await engine.listOutputDevices()
+      setDevices(nextDevices)
+      setMessage(nextDevices.length ? '' : 'No audio outputs were exposed by the browser.')
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Unable to read audio outputs')
+    }
+  }, [engine, setDevices])
+
+  useEffect(() => {
+    const support = engine.getOutputSupport()
+    setOutputSelectionSupported(support.canSelectOutput)
+
+    if (!support.canEnumerate) return
+
+    const task = window.setTimeout(() => {
+      void refreshDevices(false)
+    }, 0)
+
+    return () => window.clearTimeout(task)
+  }, [engine, refreshDevices, setOutputSelectionSupported])
+
+  return (
+    <section className="audio-settings" aria-label="Audio output settings">
+      <div className="settings-heading">
+        <div>
+          <h2>Audio routing</h2>
+          <p>Use separate system outputs for master speakers and cue headphones.</p>
+        </div>
+        <button className="refresh-devices" onClick={() => refreshDevices(true)}>
+          <RefreshCw size={16} /> Detect devices
+        </button>
+      </div>
+
+      {!outputSelectionSupported && (
+        <div className="routing-warning" role="status">
+          This browser cannot select output devices. Master and cue will use the system default output.
+        </div>
+      )}
+
+      <div className="device-grid">
+        <label>
+          <span>Master output</span>
+          <select
+            aria-label="Master output"
+            value={masterOutputId}
+            disabled={!outputSelectionSupported}
+            onChange={async (event) => {
+              const deviceId = event.target.value
+              try {
+                await engine.initialize()
+                await engine.setMasterOutput(deviceId)
+                setMasterOutputId(deviceId)
+                setMessage('')
+              } catch (error) {
+                setMessage(error instanceof Error ? error.message : 'Unable to set master output')
+              }
+            }}
+          >
+            <option value="default">System default</option>
+            {devices.filter((device) => device.deviceId !== 'default').map((device) => (
+              <option key={device.deviceId} value={device.deviceId}>{device.label}</option>
+            ))}
+          </select>
+        </label>
+
+        <label>
+          <span>Cue output</span>
+          <select
+            aria-label="Cue output"
+            value={cueOutputId}
+            disabled={!outputSelectionSupported}
+            onChange={async (event) => {
+              const deviceId = event.target.value
+              try {
+                await engine.initialize()
+                await engine.setCueOutput(deviceId)
+                setCueOutputId(deviceId)
+                setMessage('')
+              } catch (error) {
+                setMessage(error instanceof Error ? error.message : 'Unable to set cue output')
+              }
+            }}
+          >
+            <option value="default">System default</option>
+            {devices.filter((device) => device.deviceId !== 'default').map((device) => (
+              <option key={device.deviceId} value={device.deviceId}>{device.label}</option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      {message && <p className="routing-message" role="status">{message}</p>}
+    </section>
+  )
+}
+
 function App() {
   const crossfader = useMixerStore((state) => state.crossfader)
+  const cueVolume = useMixerStore((state) => state.cueVolume)
+  const cueMix = useMixerStore((state) => state.cueMix)
   const setCrossfader = useMixerStore((state) => state.setCrossfader)
+  const setCueVolume = useMixerStore((state) => state.setCueVolume)
+  const setCueMix = useMixerStore((state) => state.setCueMix)
 
   return (
     <main className="app-shell">
       <header className="topbar">
         <div className="brand"><Music2 /> <span>WebDJ</span></div>
-        <div className="status"><span className="status-dot" /> Local dual-deck audio enabled</div>
+        <div className="status"><span className="status-dot" /> Dual-deck audio with cue routing</div>
       </header>
 
       <div className="workspace">
         <Deck side="A" />
         <section className="mixer">
           <div className="mixer-title"><SlidersHorizontal /> MIXER</div>
-          <p className="mixer-copy">Equal-power crossfade keeps the center from sounding thin.</p>
+          <p className="mixer-copy">Cue is pre-fader, so a lowered channel can still be previewed in headphones.</p>
+
+          <div className="monitor-controls">
+            <label className="control-row">
+              <span>Cue volume</span>
+              <input
+                aria-label="Cue volume"
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value={cueVolume}
+                onChange={(event) => {
+                  const value = Number(event.target.value)
+                  setCueVolume(value)
+                  getAudioEngine().setCueVolume(value)
+                }}
+              />
+            </label>
+            <label className="control-row">
+              <span>Cue / Master mix</span>
+              <input
+                aria-label="Cue master mix"
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value={cueMix}
+                onChange={(event) => {
+                  const value = Number(event.target.value)
+                  setCueMix(value)
+                  getAudioEngine().setCueMix(value)
+                }}
+              />
+              <div className="cross-labels"><span>CUE</span><span>MASTER</span></div>
+            </label>
+          </div>
+
           <label className="crossfader">
             <span>CROSSFADER</span>
             <input
@@ -205,12 +370,7 @@ function App() {
         <Deck side="B" />
       </div>
 
-      <section className="library">
-        <div>
-          <h2>Local performance mode</h2>
-          <p>Load one audio file per deck. Streaming sources and cue output come after the local audio path is stable.</p>
-        </div>
-      </section>
+      <AudioSettings />
     </main>
   )
 }

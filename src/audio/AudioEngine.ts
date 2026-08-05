@@ -1,9 +1,14 @@
 import { calculateCrossfaderGains } from './crossfader'
+import { calculateMonitorGains, getOutputSupport, normalizeAudioOutputs, type AudioOutputDevice } from './routing'
 import type { DeckId } from '../state/mixerStore'
 
 type DeckCallbacks = {
   onTimeUpdate?: (currentTime: number, duration: number) => void
   onEnded?: () => void
+}
+
+type SinkAudioElement = HTMLAudioElement & {
+  setSinkId?: (deviceId: string) => Promise<void>
 }
 
 type DeckChannel = {
@@ -15,12 +20,21 @@ type DeckChannel = {
   high: BiquadFilterNode
   channelGain: GainNode
   crossfadeGain: GainNode
+  cueGain: GainNode
   objectUrl: string | null
 }
 
 export class AudioEngine {
   readonly context: AudioContext
   private readonly masterGain: GainNode
+  private readonly masterDestination: MediaStreamAudioDestinationNode
+  private readonly cueDestination: MediaStreamAudioDestinationNode
+  private readonly cueBus: GainNode
+  private readonly cueMonitorGain: GainNode
+  private readonly masterMonitorGain: GainNode
+  private readonly cueOutputGain: GainNode
+  private readonly masterOutput: SinkAudioElement
+  private readonly cueOutput: SinkAudioElement
   private readonly decks: Record<DeckId, DeckChannel>
   private initialized = false
 
@@ -28,7 +42,23 @@ export class AudioEngine {
     this.context = new AudioContext({ latencyHint: 'interactive' })
     this.masterGain = this.context.createGain()
     this.masterGain.gain.value = 0.9
-    this.masterGain.connect(this.context.destination)
+
+    this.masterDestination = this.context.createMediaStreamDestination()
+    this.cueDestination = this.context.createMediaStreamDestination()
+    this.cueBus = this.context.createGain()
+    this.cueMonitorGain = this.context.createGain()
+    this.masterMonitorGain = this.context.createGain()
+    this.cueOutputGain = this.context.createGain()
+
+    this.masterOutput = this.createOutputElement(this.masterDestination.stream)
+    this.cueOutput = this.createOutputElement(this.cueDestination.stream)
+
+    this.masterGain.connect(this.masterDestination)
+    this.masterGain.connect(this.masterMonitorGain)
+    this.masterMonitorGain.connect(this.cueOutputGain)
+    this.cueBus.connect(this.cueMonitorGain)
+    this.cueMonitorGain.connect(this.cueOutputGain)
+    this.cueOutputGain.connect(this.cueDestination)
 
     this.decks = {
       A: this.createDeckChannel(),
@@ -36,6 +66,15 @@ export class AudioEngine {
     }
 
     this.setCrossfader(0)
+    this.setCueVolume(0.8)
+    this.setCueMix(0)
+  }
+
+  private createOutputElement(stream: MediaStream): SinkAudioElement {
+    const output = new Audio() as SinkAudioElement
+    output.autoplay = true
+    output.srcObject = stream
+    return output
   }
 
   private createDeckChannel(): DeckChannel {
@@ -49,15 +88,12 @@ export class AudioEngine {
     const high = this.createEqBand('highshelf', 6_500)
     const channelGain = this.context.createGain()
     const crossfadeGain = this.context.createGain()
+    const cueGain = this.context.createGain()
+    cueGain.gain.value = 0
 
-    source
-      .connect(inputGain)
-      .connect(low)
-      .connect(mid)
-      .connect(high)
-      .connect(channelGain)
-      .connect(crossfadeGain)
-      .connect(this.masterGain)
+    source.connect(inputGain).connect(low).connect(mid).connect(high)
+    high.connect(channelGain).connect(crossfadeGain).connect(this.masterGain)
+    high.connect(cueGain).connect(this.cueBus)
 
     return {
       element,
@@ -68,6 +104,7 @@ export class AudioEngine {
       high,
       channelGain,
       crossfadeGain,
+      cueGain,
       objectUrl: null,
     }
   }
@@ -83,11 +120,47 @@ export class AudioEngine {
 
   async initialize(): Promise<void> {
     if (this.context.state === 'suspended') await this.context.resume()
+    await Promise.allSettled([this.masterOutput.play(), this.cueOutput.play()])
     this.initialized = true
   }
 
   isReady(): boolean {
     return this.initialized && this.context.state === 'running'
+  }
+
+  async requestOutputAccess(): Promise<AudioOutputDevice[]> {
+    if (!navigator.mediaDevices) return []
+
+    let stream: MediaStream | null = null
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+    } catch {
+      // Device labels can still be partially available without microphone permission.
+    } finally {
+      stream?.getTracks().forEach((track) => track.stop())
+    }
+
+    return this.listOutputDevices()
+  }
+
+  async listOutputDevices(): Promise<AudioOutputDevice[]> {
+    if (!navigator.mediaDevices?.enumerateDevices) return []
+    const devices = await navigator.mediaDevices.enumerateDevices()
+    return normalizeAudioOutputs(devices)
+  }
+
+  getOutputSupport() {
+    return getOutputSupport()
+  }
+
+  async setMasterOutput(deviceId: string): Promise<void> {
+    if (!this.masterOutput.setSinkId) throw new Error('Output selection is not supported in this browser')
+    await this.masterOutput.setSinkId(deviceId)
+  }
+
+  async setCueOutput(deviceId: string): Promise<void> {
+    if (!this.cueOutput.setSinkId) throw new Error('Output selection is not supported in this browser')
+    await this.cueOutput.setSinkId(deviceId)
   }
 
   async loadFile(deckId: DeckId, file: File, callbacks: DeckCallbacks = {}): Promise<void> {
@@ -131,6 +204,21 @@ export class AudioEngine {
     this.decks[deckId].channelGain.gain.setTargetAtTime(gain, this.context.currentTime, 0.01)
   }
 
+  setDeckCue(deckId: DeckId, enabled: boolean): void {
+    this.decks[deckId].cueGain.gain.setTargetAtTime(enabled ? 1 : 0, this.context.currentTime, 0.01)
+  }
+
+  setCueVolume(value: number): void {
+    const gain = Math.min(1, Math.max(0, value))
+    this.cueOutputGain.gain.setTargetAtTime(gain, this.context.currentTime, 0.01)
+  }
+
+  setCueMix(value: number): void {
+    const gains = calculateMonitorGains(value)
+    this.cueMonitorGain.gain.setTargetAtTime(gains.cue, this.context.currentTime, 0.01)
+    this.masterMonitorGain.gain.setTargetAtTime(gains.master, this.context.currentTime, 0.01)
+  }
+
   setEq(deckId: DeckId, band: 'low' | 'mid' | 'high', value: number): void {
     const gain = Math.min(12, Math.max(-24, value))
     this.decks[deckId][band].gain.setTargetAtTime(gain, this.context.currentTime, 0.01)
@@ -147,6 +235,8 @@ export class AudioEngine {
       deck.element.pause()
       if (deck.objectUrl) URL.revokeObjectURL(deck.objectUrl)
     }
+    this.masterOutput.pause()
+    this.cueOutput.pause()
     if (this.context.state !== 'closed') await this.context.close()
   }
 }

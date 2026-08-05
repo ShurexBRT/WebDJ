@@ -4,22 +4,27 @@ import { useMixerStore } from './mixerStore'
 describe('mixer store', () => {
   beforeEach(() => useMixerStore.getState().reset())
 
-  it('loads a track without changing the saved channel level', () => {
+  it('loads a track without changing the saved channel level or cue state', () => {
     useMixerStore.getState().setDeckVolume('A', 0.42)
+    useMixerStore.getState().setDeckCue('A', true)
     useMixerStore.getState().loadTrack('A', 'track-a.mp3')
 
     const deck = useMixerStore.getState().decks.A
     expect(deck.trackName).toBe('track-a.mp3')
     expect(deck.volume).toBe(0.42)
+    expect(deck.cueEnabled).toBe(true)
     expect(deck.currentTime).toBe(0)
   })
 
   it('keeps deck state independent', () => {
     useMixerStore.getState().loadTrack('A', 'a.wav')
     useMixerStore.getState().setPlaying('A', true)
+    useMixerStore.getState().setDeckCue('B', true)
 
     expect(useMixerStore.getState().decks.A.isPlaying).toBe(true)
     expect(useMixerStore.getState().decks.B.isPlaying).toBe(false)
+    expect(useMixerStore.getState().decks.A.cueEnabled).toBe(false)
+    expect(useMixerStore.getState().decks.B.cueEnabled).toBe(true)
   })
 
   it('updates EQ and playback position', () => {
@@ -30,5 +35,18 @@ describe('mixer store', () => {
     expect(deck.low).toBe(-12)
     expect(deck.currentTime).toBe(15)
     expect(deck.duration).toBe(180)
+  })
+
+  it('stores monitor controls and independent output devices', () => {
+    useMixerStore.getState().setCueVolume(0.35)
+    useMixerStore.getState().setCueMix(0.75)
+    useMixerStore.getState().setMasterOutputId('speakers')
+    useMixerStore.getState().setCueOutputId('headphones')
+
+    const state = useMixerStore.getState()
+    expect(state.cueVolume).toBe(0.35)
+    expect(state.cueMix).toBe(0.75)
+    expect(state.masterOutputId).toBe('speakers')
+    expect(state.cueOutputId).toBe('headphones')
   })
 })
