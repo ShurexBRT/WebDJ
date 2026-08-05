@@ -27,7 +27,7 @@ describe('session settings', () => {
       quantizeEnabled: true,
       masterVolume: 0,
       cueVolume: 1,
-      cueMix: Number.NaN,
+      cueMix: 0,
       trackHistory: [{ id: 'one', name: 'Track One', lastLoadedAt: 20 }],
     })
   })
