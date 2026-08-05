@@ -4,10 +4,12 @@ import { useMixerStore } from './mixerStore'
 describe('mixer store', () => {
   beforeEach(() => useMixerStore.getState().reset())
 
-  it('loads a track without changing saved channel controls or cue state', () => {
+  it('loads a track without changing saved channel controls, FX or cue state', () => {
     useMixerStore.getState().setDeckTrim('A', 6)
     useMixerStore.getState().setDeckVolume('A', 0.42)
     useMixerStore.getState().setDeckCue('A', true)
+    useMixerStore.getState().setDeckFilter('A', -0.5)
+    useMixerStore.getState().setDeckEcho('A', { echoEnabled: true, echoMix: 0.5 })
     useMixerStore.getState().loadTrack('A', 'track-a.mp3')
 
     const deck = useMixerStore.getState().decks.A
@@ -15,24 +17,30 @@ describe('mixer store', () => {
     expect(deck.trim).toBe(6)
     expect(deck.volume).toBe(0.42)
     expect(deck.cueEnabled).toBe(true)
+    expect(deck.filter).toBe(-0.5)
+    expect(deck.echoEnabled).toBe(true)
+    expect(deck.echoMix).toBe(0.5)
     expect(deck.currentTime).toBe(0)
   })
 
-  it('keeps deck state independent', () => {
+  it('keeps deck and FX state independent', () => {
     useMixerStore.getState().loadTrack('A', 'a.wav')
     useMixerStore.getState().setPlaying('A', true)
     useMixerStore.getState().setDeckCue('B', true)
+    useMixerStore.getState().setDeckReverb('B', { reverbEnabled: true, reverbMix: 0.4 })
 
     expect(useMixerStore.getState().decks.A.isPlaying).toBe(true)
     expect(useMixerStore.getState().decks.B.isPlaying).toBe(false)
     expect(useMixerStore.getState().decks.A.cueEnabled).toBe(false)
     expect(useMixerStore.getState().decks.B.cueEnabled).toBe(true)
+    expect(useMixerStore.getState().decks.A.reverbEnabled).toBe(false)
+    expect(useMixerStore.getState().decks.B.reverbEnabled).toBe(true)
+    expect(useMixerStore.getState().decks.B.reverbMix).toBe(0.4)
   })
 
   it('updates EQ and playback position', () => {
     useMixerStore.getState().setDeckEq('B', 'low', -12)
     useMixerStore.getState().setDeckTime('B', 15, 180)
-
     const deck = useMixerStore.getState().decks.B
     expect(deck.low).toBe(-12)
     expect(deck.currentTime).toBe(15)
@@ -45,7 +53,6 @@ describe('mixer store', () => {
     useMixerStore.getState().setCueMix(0.75)
     useMixerStore.getState().setMasterOutputId('speakers')
     useMixerStore.getState().setCueOutputId('headphones')
-
     const state = useMixerStore.getState()
     expect(state.masterVolume).toBe(0.65)
     expect(state.cueVolume).toBe(0.35)
