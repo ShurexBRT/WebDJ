@@ -1,0 +1,190 @@
+/* Render fidelity pass: proportions and density from the approved WebDJ studio concept. */
+
+.studio-header {
+  grid-template-columns: 126px auto minmax(90px, 1fr) 230px 118px 180px 34px;
+}
+
+.header-master {
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 0 10px;
+}
+
+.horizontal-meter {
+  flex: 1;
+  min-width: 128px;
+}
+
+.horizontal-meter-track {
+  position: relative;
+  height: 13px;
+  overflow: hidden;
+  border: 1px solid #283039;
+  background:
+    repeating-linear-gradient(90deg, transparent 0 8px, #020304 8px 10px),
+    #07090b;
+  box-shadow: inset 0 0 8px rgba(0, 0, 0, .9);
+}
+
+.horizontal-meter-fill {
+  position: absolute;
+  inset: 1px;
+  transform: scaleX(0);
+  transform-origin: left;
+  background:
+    repeating-linear-gradient(90deg, transparent 0 8px, rgba(0, 0, 0, .58) 8px 10px),
+    linear-gradient(90deg, #2fe364 0 68%, #e5d638 78%, #ff8d25 88%, #ff4238 100%);
+  will-change: transform;
+}
+
+.horizontal-meter-peak {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 2px;
+  background: #fff;
+  box-shadow: 0 0 5px #fff;
+}
+
+.workspace {
+  grid-template-columns: minmax(440px, 1fr) 408px minmax(440px, 1fr);
+}
+
+.deck,
+.mixer {
+  min-height: 612px;
+}
+
+.deck {
+  gap: 6px;
+}
+
+.deck-performance-grid {
+  min-height: 252px;
+  grid-template-columns: 224px 116px minmax(178px, 1fr);
+  gap: 7px;
+}
+
+.jog-wheel {
+  width: 218px;
+}
+
+.jog-readout strong {
+  font-size: 20px;
+}
+
+.jog-readout span {
+  font-size: 10px;
+}
+
+.transport-button {
+  width: 61px;
+  height: 61px;
+}
+
+.transport-button svg {
+  width: 24px;
+  height: 24px;
+}
+
+.deck-utility-stack {
+  grid-template-rows: 178px minmax(0, 1fr);
+}
+
+.tempo-panel {
+  position: relative;
+  min-height: 178px;
+  padding: 8px 9px;
+}
+
+.tempo-panel .tempo-analysis-status {
+  min-height: 18px;
+}
+
+.tempo-panel label:nth-of-type(2) {
+  min-height: 82px;
+  grid-template-columns: 1fr;
+  justify-items: center;
+  align-content: center;
+}
+
+.tempo-panel label:nth-of-type(2) span {
+  justify-self: stretch;
+}
+
+.tempo-panel label:nth-of-type(2) input[type="range"] {
+  width: 78px;
+  transform: rotate(-90deg);
+}
+
+.effects-panel {
+  min-height: 252px;
+}
+
+.effect-block {
+  grid-template-columns: 58px repeat(3, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.mixer-console {
+  grid-template-columns: 1fr .92fr 1fr;
+}
+
+.mixer-channel,
+.master-channel {
+  padding-inline: 10px;
+}
+
+.master-meter-pair {
+  min-height: 165px;
+}
+
+.channel-fader-zone {
+  min-height: 164px;
+}
+
+.vertical-fader {
+  width: 132px !important;
+}
+
+.crossfader {
+  padding-inline: 52px;
+}
+
+.studio-dock {
+  grid-template-columns: minmax(0, 1.85fr) 330px 310px;
+}
+
+.library-panel,
+.sampler-panel,
+.headphone-panel {
+  min-height: 240px;
+}
+
+@media (max-width: 1450px) {
+  .studio-header {
+    grid-template-columns: 118px auto minmax(72px, 1fr) 190px 105px 160px 32px;
+    gap: 7px;
+  }
+
+  .horizontal-meter {
+    min-width: 100px;
+  }
+
+  .workspace {
+    grid-template-columns: minmax(410px, 1fr) 380px minmax(410px, 1fr);
+  }
+
+  .deck-performance-grid {
+    grid-template-columns: 204px 108px minmax(160px, 1fr);
+  }
+
+  .jog-wheel {
+    width: 198px;
+  }
+
+  .studio-dock {
+    grid-template-columns: minmax(0, 1.7fr) 310px 292px;
+  }
+}
