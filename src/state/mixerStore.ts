@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import type { AudioOutputDevice } from '../audio/routing'
 
 export type DeckId = 'A' | 'B'
+export type BpmAnalysisStatus = 'idle' | 'analyzing' | 'detected' | 'manual' | 'failed'
 
 export type DeckState = {
   trackName: string | null
@@ -9,6 +10,8 @@ export type DeckState = {
   trim: number
   volume: number
   bpm: number
+  bpmConfidence: number
+  bpmAnalysisStatus: BpmAnalysisStatus
   pitchPercent: number
   currentTime: number
   duration: number
@@ -42,7 +45,8 @@ type MixerState = {
   setPlaying: (deckId: DeckId, isPlaying: boolean) => void
   setDeckTrim: (deckId: DeckId, trim: number) => void
   setDeckVolume: (deckId: DeckId, volume: number) => void
-  setDeckBpm: (deckId: DeckId, bpm: number) => void
+  setDeckBpm: (deckId: DeckId, bpm: number, status?: BpmAnalysisStatus) => void
+  setDeckBpmAnalysis: (deckId: DeckId, status: BpmAnalysisStatus, bpm?: number, confidence?: number) => void
   setDeckPitch: (deckId: DeckId, pitchPercent: number) => void
   setDeckTime: (deckId: DeckId, currentTime: number, duration?: number) => void
   setDeckEq: (deckId: DeckId, band: 'low' | 'mid' | 'high', value: number) => void
@@ -69,6 +73,8 @@ const emptyDeck = (): DeckState => ({
   trim: 0,
   volume: 0.8,
   bpm: 0,
+  bpmConfidence: 0,
+  bpmAnalysisStatus: 'idle',
   pitchPercent: 0,
   currentTime: 0,
   duration: 0,
@@ -109,7 +115,6 @@ export const useMixerStore = create<MixerState>((set) => ({
         ...emptyDeck(),
         trim: state.decks[deckId].trim,
         volume: state.decks[deckId].volume,
-        bpm: state.decks[deckId].bpm,
         pitchPercent: state.decks[deckId].pitchPercent,
         cueEnabled: state.decks[deckId].cueEnabled,
         filter: state.decks[deckId].filter,
@@ -126,7 +131,20 @@ export const useMixerStore = create<MixerState>((set) => ({
   setPlaying: (deckId, isPlaying) => set((state) => ({ decks: { ...state.decks, [deckId]: { ...state.decks[deckId], isPlaying } } })),
   setDeckTrim: (deckId, trim) => set((state) => ({ decks: { ...state.decks, [deckId]: { ...state.decks[deckId], trim } } })),
   setDeckVolume: (deckId, volume) => set((state) => ({ decks: { ...state.decks, [deckId]: { ...state.decks[deckId], volume } } })),
-  setDeckBpm: (deckId, bpm) => set((state) => ({ decks: { ...state.decks, [deckId]: { ...state.decks[deckId], bpm } } })),
+  setDeckBpm: (deckId, bpm, status = 'manual') => set((state) => ({
+    decks: { ...state.decks, [deckId]: { ...state.decks[deckId], bpm, bpmConfidence: 0, bpmAnalysisStatus: status } },
+  })),
+  setDeckBpmAnalysis: (deckId, bpmAnalysisStatus, bpm, bpmConfidence) => set((state) => ({
+    decks: {
+      ...state.decks,
+      [deckId]: {
+        ...state.decks[deckId],
+        bpm: bpm ?? state.decks[deckId].bpm,
+        bpmConfidence: bpmConfidence ?? state.decks[deckId].bpmConfidence,
+        bpmAnalysisStatus,
+      },
+    },
+  })),
   setDeckPitch: (deckId, pitchPercent) => set((state) => ({ decks: { ...state.decks, [deckId]: { ...state.decks[deckId], pitchPercent } } })),
   setDeckTime: (deckId, currentTime, duration) => set((state) => ({
     decks: { ...state.decks, [deckId]: { ...state.decks[deckId], currentTime, duration: duration ?? state.decks[deckId].duration } },
