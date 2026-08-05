@@ -2,7 +2,7 @@ import { type CSSProperties } from 'react'
 import { ChevronsLeft, ChevronsRight, Headphones, Pause, Play, Upload } from 'lucide-react'
 import { getAudioEngine } from '../../audio/AudioEngine'
 import { analyzeFileBpm } from '../../audio/bpmAnalysis'
-import { phaseAlignedTime, phaseLabel, signedPhaseErrorSeconds } from '../../audio/phaseSync'
+import { phaseAlignedTime, phaseLabel, quantizeTime, signedPhaseErrorSeconds } from '../../audio/phaseSync'
 import { effectiveBpm, pitchToMatchBpm } from '../../audio/tempo'
 import { formatTime, progressFromTime, timeFromProgress } from '../../audio/transport'
 import { decodeWaveform } from '../../audio/waveform'
@@ -20,6 +20,7 @@ export function Deck({ side }: { side: DeckId }) {
   const otherSide: DeckId = side === 'A' ? 'B' : 'A'
   const otherDeck = useMixerStore((state) => state.decks[otherSide])
   const masterDeck = useMixerStore((state) => state.masterDeck)
+  const quantizeEnabled = useMixerStore((state) => state.quantizeEnabled)
   const loadTrack = useMixerStore((state) => state.loadTrack)
   const setPlaying = useMixerStore((state) => state.setPlaying)
   const setDeckTime = useMixerStore((state) => state.setDeckTime)
@@ -51,11 +52,17 @@ export function Deck({ side }: { side: DeckId }) {
     '--jog-progress': `${Math.max(0, Math.min(1, progress)) * 360}deg`,
   } as CSSProperties
 
-  const seekToProgress = (nextProgress: number) => {
-    const nextTime = timeFromProgress(nextProgress, deck.duration)
+  const normalizeSeekTime = (time: number) => quantizeEnabled
+    ? quantizeTime(time, gridBpm, deck.beatOffsetSeconds)
+    : time
+
+  const seekToTime = (time: number) => {
+    const nextTime = normalizeSeekTime(time)
     engine.seek(side, nextTime)
     setDeckTime(side, nextTime)
   }
+
+  const seekToProgress = (nextProgress: number) => seekToTime(timeFromProgress(nextProgress, deck.duration))
 
   const syncToReference = () => {
     if (side === syncReferenceId) return
@@ -154,11 +161,11 @@ export function Deck({ side }: { side: DeckId }) {
       </div>
 
       <div className="waveform-panel">
-        <Waveform peaks={deck.waveform} progress={progress} accent={accent} label={`Waveform deck ${side}`} duration={deck.duration} bpm={gridBpm} beatOffsetSeconds={deck.beatOffsetSeconds} onSeek={seekToProgress} />
-        <div className="time-readout"><span>{formatTime(deck.currentTime)}</span><span>{deck.isAnalyzing ? 'ANALYZING AUDIO…' : deck.analysisError ?? 'WAVEFORM / BEAT GRID'}</span><span>-{formatTime(Math.max(0, deck.duration - deck.currentTime))}</span></div>
+        <Waveform peaks={deck.waveform} progress={progress} accent={accent} label={`Waveform deck ${side}`} duration={deck.duration} bpm={gridBpm} beatOffsetSeconds={deck.beatOffsetSeconds} barOffsetBeats={deck.barOffsetBeats} onSeek={seekToProgress} />
+        <div className="time-readout"><span>{formatTime(deck.currentTime)}</span><span>{deck.isAnalyzing ? 'ANALYZING AUDIO…' : deck.analysisError ?? `${quantizeEnabled ? 'QNTZ' : 'FREE'} · WAVEFORM / BEAT GRID`}</span><span>-{formatTime(Math.max(0, deck.duration - deck.currentTime))}</span></div>
       </div>
 
-      <input className="native-seek" aria-label={`Seek deck ${side}`} type="range" min="0" max={Math.max(deck.duration, 0)} step="0.1" value={Math.min(deck.currentTime, deck.duration || 0)} disabled={!deck.duration} onChange={(event) => { const value = Number(event.target.value); engine.seek(side, value); setDeckTime(side, value) }} />
+      <input className="native-seek" aria-label={`Seek deck ${side}`} type="range" min="0" max={Math.max(deck.duration, 0)} step="0.1" value={Math.min(deck.currentTime, deck.duration || 0)} disabled={!deck.duration} onChange={(event) => seekToTime(Number(event.target.value))} />
 
       <div className="deck-transport-strip">
         <button className={`cue-button${deck.cueEnabled ? ' active' : ''}`} onClick={async () => { await engine.initialize(); const enabled = !deck.cueEnabled; setDeckCue(side, enabled); engine.setDeckCue(side, enabled) }} aria-pressed={deck.cueEnabled} aria-label={`Cue deck ${side}`}><Headphones size={16} /> CUE</button>
