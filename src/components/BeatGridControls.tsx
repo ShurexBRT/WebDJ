@@ -1,3 +1,4 @@
+import { Crosshair } from 'lucide-react'
 import { effectiveBpm } from '../audio/tempo'
 import { normalizeBeatOffset } from '../audio/beatGrid'
 import { useMixerStore, type DeckId } from '../state/mixerStore'
@@ -17,14 +18,14 @@ export function BeatGridControls({ deckId }: { deckId: DeckId }) {
 
   return (
     <section className="beat-grid-controls" aria-label={`Beat grid deck ${deckId}`}>
-      <div>
-        <strong>BEAT GRID</strong>
-        <span>{disabled ? 'BPM + track required' : `Offset ${deck.beatOffsetSeconds.toFixed(2)}s`}</span>
+      <div className="beat-grid-status">
+        <span><Crosshair size={12} /> GRID</span>
+        <strong>{disabled ? 'LOCKED' : `${Math.round(deck.beatOffsetSeconds * 1000)} ms`}</strong>
       </div>
       <div className="beat-grid-actions">
-        <button type="button" aria-label={`Nudge beat grid earlier deck ${deckId}`} disabled={disabled} onClick={() => applyOffset(deck.beatOffsetSeconds - NUDGE_SECONDS)}>−10ms</button>
-        <button type="button" aria-label={`Reset beat grid deck ${deckId}`} disabled={disabled} onClick={() => applyOffset(0)}>RESET</button>
-        <button type="button" aria-label={`Nudge beat grid later deck ${deckId}`} disabled={disabled} onClick={() => applyOffset(deck.beatOffsetSeconds + NUDGE_SECONDS)}>+10ms</button>
+        <button type="button" aria-label={`Nudge beat grid earlier deck ${deckId}`} disabled={disabled} onClick={() => applyOffset(deck.beatOffsetSeconds - NUDGE_SECONDS)}>−10</button>
+        <button type="button" aria-label={`Reset beat grid deck ${deckId}`} disabled={disabled} onClick={() => applyOffset(0)}>ZERO</button>
+        <button type="button" aria-label={`Nudge beat grid later deck ${deckId}`} disabled={disabled} onClick={() => applyOffset(deck.beatOffsetSeconds + NUDGE_SECONDS)}>+10</button>
       </div>
     </section>
   )
