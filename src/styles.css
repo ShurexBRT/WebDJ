@@ -8,7 +8,7 @@
 
 * { box-sizing: border-box; }
 body { margin: 0; min-width: 1180px; min-height: 100vh; background: radial-gradient(circle at top, #151b29 0, #080a0f 38%, #05070a 100%); }
-button, input { font: inherit; }
+button, input, select { font: inherit; }
 button { color: inherit; }
 button:disabled { cursor: not-allowed; opacity: .45; }
 
@@ -19,7 +19,7 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 .status { color: #929cad; font-size: 13px; }
 .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #48dc86; box-shadow: 0 0 15px #48dc86; }
 .workspace { display: grid; grid-template-columns: minmax(0, 1fr) 330px minmax(0, 1fr); gap: 14px; margin-top: 14px; }
-.deck, .mixer, .library { border: 1px solid #262d3b; border-radius: 16px; background: linear-gradient(180deg, rgba(21,25,35,.96), rgba(10,12,18,.98)); box-shadow: 0 24px 70px rgba(0,0,0,.28); }
+.deck, .mixer, .audio-settings { border: 1px solid #262d3b; border-radius: 16px; background: linear-gradient(180deg, rgba(21,25,35,.96), rgba(10,12,18,.98)); box-shadow: 0 24px 70px rgba(0,0,0,.28); }
 .deck { min-height: 665px; padding: 22px; display: flex; flex-direction: column; gap: 16px; }
 .deck-a { border-top-color: #29b6ff; }
 .deck-b { border-top-color: #ff9a3d; }
@@ -34,7 +34,8 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 .transport-button svg { width: 30px; height: 30px; }
 .deck-a .transport-button { color: #42c1ff; box-shadow: inset 0 0 25px rgba(66,193,255,.12); }
 .deck-b .transport-button { color: #ff9a3d; box-shadow: inset 0 0 25px rgba(255,154,61,.12); }
-.cue-button { border: 1px solid #39445a; border-radius: 10px; background: #141925; padding: 12px 16px; display: flex; gap: 8px; align-items: center; }
+.cue-button { border: 1px solid #39445a; border-radius: 10px; background: #141925; padding: 12px 16px; display: flex; gap: 8px; align-items: center; cursor: pointer; }
+.cue-button.active { color: #08120c; border-color: #55e38b; background: #55e38b; box-shadow: 0 0 24px rgba(85,227,139,.28); }
 .control-row { display: grid; gap: 8px; color: #9aa4b5; font-size: 11px; text-transform: uppercase; letter-spacing: .12em; }
 .control-row.compact { gap: 6px; }
 .deck-controls { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; padding: 14px; border: 1px solid #242b38; border-radius: 12px; background: rgba(5,7,11,.45); }
@@ -44,8 +45,16 @@ input[type="range"] { width: 100%; accent-color: #7b8cff; }
 .mixer { min-height: 665px; padding: 24px; display: flex; flex-direction: column; }
 .mixer-title { justify-content: center; color: #cbd2df; font-size: 12px; letter-spacing: .16em; }
 .mixer-copy { margin: 28px 0; color: #7f8a9c; font-size: 13px; line-height: 1.55; text-align: center; }
+.monitor-controls { display: grid; gap: 24px; padding: 18px; border: 1px solid #283142; border-radius: 12px; background: rgba(7,9,14,.52); }
 .crossfader { margin-top: auto; display: grid; gap: 14px; color: #929cad; font-size: 11px; letter-spacing: .14em; text-align: center; }
 .cross-labels { display: flex; justify-content: space-between; color: #707b8e; }
-.library { margin-top: 14px; padding: 20px 22px; display: flex; align-items: center; justify-content: space-between; }
-.library h2 { margin: 0 0 5px; font-size: 16px; }
-.library p { margin: 0; color: #8792a4; font-size: 13px; }
+.audio-settings { margin-top: 14px; padding: 20px 22px; }
+.settings-heading { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.settings-heading h2 { margin: 0 0 5px; font-size: 16px; }
+.settings-heading p, .routing-message { margin: 0; color: #8792a4; font-size: 13px; }
+.refresh-devices { border: 1px solid #3d4b65; border-radius: 9px; background: #182136; padding: 10px 13px; display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.device-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 18px; }
+.device-grid label { display: grid; gap: 8px; color: #9aa4b5; font-size: 11px; text-transform: uppercase; letter-spacing: .12em; }
+.device-grid select { width: 100%; border: 1px solid #33405a; border-radius: 9px; background: #0e1420; color: #eef2f8; padding: 10px 12px; }
+.routing-warning { margin-top: 16px; border: 1px solid #6f5630; border-radius: 9px; background: rgba(126,88,30,.16); color: #e7c580; padding: 11px 13px; font-size: 13px; }
+.routing-message { margin-top: 12px; }
