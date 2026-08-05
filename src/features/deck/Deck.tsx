@@ -12,16 +12,21 @@ import { EffectsPanel } from '../../components/EffectsPanel'
 import { HotCueControls } from '../../components/HotCueControls'
 import { TempoControls } from '../../components/TempoControls'
 import { Waveform } from '../../components/Waveform'
+import { fingerprintFile, getTrackProfile } from '../../storage/trackProfiles'
+import { useTrackProfilePersistence } from '../../storage/useTrackProfilePersistence'
 import { useMixerStore, type DeckId } from '../../state/mixerStore'
 import './transportControls.css'
 
 export function Deck({ side }: { side: DeckId }) {
+  useTrackProfilePersistence(side)
   const deck = useMixerStore((state) => state.decks[side])
   const otherSide: DeckId = side === 'A' ? 'B' : 'A'
   const otherDeck = useMixerStore((state) => state.decks[otherSide])
   const masterDeck = useMixerStore((state) => state.masterDeck)
   const quantizeEnabled = useMixerStore((state) => state.quantizeEnabled)
   const loadTrack = useMixerStore((state) => state.loadTrack)
+  const setDeckIdentity = useMixerStore((state) => state.setDeckIdentity)
+  const restoreDeckProfile = useMixerStore((state) => state.restoreDeckProfile)
   const setPlaying = useMixerStore((state) => state.setPlaying)
   const setDeckTime = useMixerStore((state) => state.setDeckTime)
   const setDeckWaveform = useMixerStore((state) => state.setDeckWaveform)
@@ -101,31 +106,40 @@ export function Deck({ side }: { side: DeckId }) {
     engine.setDeckEcho(side, { enabled: deck.echoEnabled, mix: deck.echoMix, timeMs: deck.echoTimeMs, feedback: deck.echoFeedback })
     engine.setDeckReverb(side, { enabled: deck.reverbEnabled, mix: deck.reverbMix })
 
-    const bpmPromise = analyzeFileBpm(file, engine.context)
-      .then((result) => {
-        if (result) setDeckBpmAnalysis(side, 'detected', result.bpm, result.confidence)
-        else setDeckBpmAnalysis(side, 'failed', 0, 0)
+    const profilePromise = fingerprintFile(file)
+      .then(async (trackId) => {
+        setDeckIdentity(side, trackId, file.size, file.lastModified)
+        return getTrackProfile(trackId)
       })
-      .catch(() => setDeckBpmAnalysis(side, 'failed', 0, 0))
+      .catch(() => null)
 
     try {
-      const [, waveform] = await Promise.all([
-        engine.loadFile(side, file, {
-          onTimeUpdate: (currentTime, duration) => setDeckTime(side, currentTime, duration),
-          onEnded: () => {
-            setPlaying(side, false)
-            setDeckTime(side, 0)
-          },
-        }),
+      await engine.loadFile(side, file, {
+        onTimeUpdate: (currentTime, duration) => setDeckTime(side, currentTime, duration),
+        onEnded: () => {
+          setPlaying(side, false)
+          setDeckTime(side, 0)
+        },
+      })
+
+      const cachedProfile = await profilePromise
+      if (cachedProfile) {
+        restoreDeckProfile(side, cachedProfile)
+        return
+      }
+
+      const [waveform, bpmResult] = await Promise.all([
         decodeWaveform(file, engine.context),
+        analyzeFileBpm(file, engine.context).catch(() => null),
       ])
       setDeckWaveform(side, waveform)
+      if (bpmResult) setDeckBpmAnalysis(side, 'detected', bpmResult.bpm, bpmResult.confidence)
+      else setDeckBpmAnalysis(side, 'failed', 0, 0)
       setDeckAnalysis(side, false)
     } catch (error) {
       setDeckAnalysis(side, false, error instanceof Error ? error.message : 'Audio analysis failed')
+      setDeckBpmAnalysis(side, 'failed', 0, 0)
     }
-
-    await bpmPromise
   }
 
   const togglePlayback = async () => {
@@ -155,14 +169,14 @@ export function Deck({ side }: { side: DeckId }) {
         <div className="track-art" aria-hidden="true"><span>{side}</span></div>
         <div className="track-heading">
           <strong>{deck.trackName ?? 'No track loaded'}</strong>
-          <span>{deck.trackName ? 'Local audio file' : 'Load a track to begin'}</span>
+          <span>{deck.trackId ? 'Cached local profile' : deck.trackName ? 'Local audio file' : 'Load a track to begin'}</span>
           <small>{gridBpm > 0 ? `${gridBpm.toFixed(1)} BPM` : '---.- BPM'} <b>—</b> KEY — <b>—</b> {formatTime(deck.duration)}</small>
         </div>
       </div>
 
       <div className="waveform-panel">
         <Waveform peaks={deck.waveform} progress={progress} accent={accent} label={`Waveform deck ${side}`} duration={deck.duration} bpm={gridBpm} beatOffsetSeconds={deck.beatOffsetSeconds} barOffsetBeats={deck.barOffsetBeats} onSeek={seekToProgress} />
-        <div className="time-readout"><span>{formatTime(deck.currentTime)}</span><span>{deck.isAnalyzing ? 'ANALYZING AUDIO…' : deck.analysisError ?? `${quantizeEnabled ? 'QNTZ' : 'FREE'} · WAVEFORM / BEAT GRID`}</span><span>-{formatTime(Math.max(0, deck.duration - deck.currentTime))}</span></div>
+        <div className="time-readout"><span>{formatTime(deck.currentTime)}</span><span>{deck.isAnalyzing ? 'ANALYZING / CHECKING CACHE…' : deck.analysisError ?? `${quantizeEnabled ? 'QNTZ' : 'FREE'} · WAVEFORM / BEAT GRID`}</span><span>-{formatTime(Math.max(0, deck.duration - deck.currentTime))}</span></div>
       </div>
 
       <input className="native-seek" aria-label={`Seek deck ${side}`} type="range" min="0" max={Math.max(deck.duration, 0)} step="0.1" value={Math.min(deck.currentTime, deck.duration || 0)} disabled={!deck.duration} onChange={(event) => seekToTime(Number(event.target.value))} />
@@ -170,10 +184,10 @@ export function Deck({ side }: { side: DeckId }) {
       <div className="deck-transport-strip">
         <button className={`cue-button${deck.cueEnabled ? ' active' : ''}`} onClick={async () => { await engine.initialize(); const enabled = !deck.cueEnabled; setDeckCue(side, enabled); engine.setDeckCue(side, enabled) }} aria-pressed={deck.cueEnabled} aria-label={`Cue deck ${side}`}><Headphones size={16} /> CUE</button>
         <button className="mini-play-button" onClick={togglePlayback} disabled={!deck.trackName} aria-label={`${deck.isPlaying ? 'Pause' : 'Play'} deck ${side}`}>{deck.isPlaying ? <Pause size={16} /> : <Play size={16} />}<span>{deck.isPlaying ? 'PAUSE' : 'PLAY'}</span></button>
-        <CueLoopControls key={`${side}-${deck.trackName ?? 'empty'}`} deckId={side} />
+        <CueLoopControls deckId={side} />
       </div>
 
-      <HotCueControls key={`hot-${side}-${deck.trackName ?? 'empty'}`} deckId={side} />
+      <HotCueControls deckId={side} />
 
       <div className="deck-performance-grid">
         <div className="platter-column">
