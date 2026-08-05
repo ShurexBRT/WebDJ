@@ -1,0 +1,31 @@
+.real-sampler { min-height: 304px; }
+.real-sampler .dock-tabs span { margin-left: 0; flex: 1; text-align: center; }
+.real-sampler .dock-tabs button:last-child { min-height: 27px; padding: 0 7px; font-size: 6px; }
+
+.sampler-master-strip { padding: 6px 9px 0; }
+.sampler-master-strip label { display: grid; grid-template-columns: 86px minmax(0, 1fr) 30px; align-items: center; gap: 6px; color: #727d88; font-size: 6px; font-weight: 900; letter-spacing: .07em; }
+.sampler-master-strip b { color: #b5bec8; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 7px; text-align: right; }
+
+.sampler-bank-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; padding: 7px 9px 9px; }
+.sample-slot { min-width: 0; display: grid; gap: 4px; padding: 5px; border: 1px solid #303741; border-radius: 3px; background: linear-gradient(180deg, #15191e, #090b0e); }
+.sample-slot.active { filter: brightness(1.35); box-shadow: 0 0 14px color-mix(in srgb, currentColor 22%, transparent); }
+.sample-trigger { min-height: 42px; display: grid; place-items: center; align-content: center; gap: 3px; border: 1px solid currentColor; border-radius: 2px; background: color-mix(in srgb, currentColor 15%, #080a0d); color: inherit; cursor: pointer; overflow: hidden; }
+.sample-trigger strong { max-width: 100%; overflow: hidden; font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
+.sample-trigger span { color: color-mix(in srgb, currentColor 72%, #777); font-size: 6px; letter-spacing: .08em; }
+.sample-trigger:disabled { opacity: .55; }
+.sample-slot-controls { display: grid; grid-template-columns: 1fr 25px 25px; gap: 3px; }
+.sample-slot-controls button, .sample-load { min-height: 23px; display: flex; align-items: center; justify-content: center; gap: 3px; border: 1px solid #303741; border-radius: 2px; background: #0b0e11; color: #89939e; font-size: 6px; font-weight: 900; cursor: pointer; }
+.sample-slot-controls button.active { color: #06110b; border-color: #58df84; background: #58df84; }
+.sample-load input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.sample-volume { display: grid; grid-template-columns: 20px 1fr; align-items: center; gap: 4px; color: #626d78; font-size: 6px; font-weight: 900; }
+.sample-volume input { height: 3px; }
+.sample-slot small { overflow: hidden; color: #ff8585; font-size: 6px; text-overflow: ellipsis; white-space: nowrap; }
+.sample-slot.red { color: #ff7770; }
+.sample-slot.orange { color: #ffad55; }
+.sample-slot.yellow { color: #e4d25a; }
+.sample-slot.green { color: #7be46e; }
+.sample-slot.cyan { color: #5ce2df; }
+.sample-slot.blue { color: #6da9ff; }
+.sample-slot.purple { color: #b58cff; }
+.sample-slot.pink { color: #ff82ba; }
+.sample-slot.magenta { color: #e174ff; }
