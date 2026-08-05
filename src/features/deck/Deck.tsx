@@ -4,6 +4,7 @@ import { getAudioEngine } from '../../audio/AudioEngine'
 import { analyzeFileBpm } from '../../audio/bpmAnalysis'
 import { formatTime, progressFromTime, timeFromProgress } from '../../audio/transport'
 import { decodeWaveform } from '../../audio/waveform'
+import { CueLoopControls } from '../../components/CueLoopControls'
 import { EffectsPanel } from '../../components/EffectsPanel'
 import { LevelMeter } from '../../components/LevelMeter'
 import { TempoControls } from '../../components/TempoControls'
@@ -95,6 +96,7 @@ export function Deck({ side }: { side: DeckId }) {
         <button className="transport-button" onClick={togglePlayback} disabled={!deck.trackName} aria-label={`${deck.isPlaying ? 'Pause' : 'Play'} deck ${side}`}>{deck.isPlaying ? <Pause /> : <Play />}</button>
         <button className={`cue-button${deck.cueEnabled ? ' active' : ''}`} onClick={async () => { await engine.initialize(); const enabled = !deck.cueEnabled; setDeckCue(side, enabled); engine.setDeckCue(side, enabled) }} aria-pressed={deck.cueEnabled} aria-label={`Cue deck ${side}`}><Headphones size={18} /> CUE</button>
       </div>
+      <CueLoopControls deckId={side} />
       <TempoControls deckId={side} />
       <div className="channel-strip">
         <LevelMeter label={`Deck ${side} level`} readLevel={readLevel} />
