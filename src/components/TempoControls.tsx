@@ -19,6 +19,14 @@ export function TempoControls({ deckId }: { deckId: DeckId }) {
     return 'WAITING'
   })()
 
+  const analysisDetail = (() => {
+    if (deck.bpmAnalysisStatus === 'analyzing') return 'Analyzing BPM'
+    if (deck.bpmAnalysisStatus === 'detected') return `Auto detected BPM with ${Math.round(deck.bpmConfidence * 100)}% confidence`
+    if (deck.bpmAnalysisStatus === 'manual') return 'Manual BPM'
+    if (deck.bpmAnalysisStatus === 'failed') return 'BPM not detected · enter manually'
+    return 'Load a track for auto BPM'
+  })()
+
   const applyPitch = (pitchPercent: number) => {
     setPitch(deckId, pitchPercent)
     engine.setDeckPitch(deckId, pitchPercent)
@@ -32,6 +40,7 @@ export function TempoControls({ deckId }: { deckId: DeckId }) {
         <span>BPM</span>
         <strong>{displayedBpm > 0 ? displayedBpm.toFixed(1) : '---.-'}</strong>
         <small>{deck.pitchPercent > 0 ? '+' : ''}{deck.pitchPercent.toFixed(1)}%</small>
+        <span className="sr-only">{analysisDetail}</span>
       </div>
 
       <div className="tempo-edit-row">
