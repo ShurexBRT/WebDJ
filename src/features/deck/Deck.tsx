@@ -1,6 +1,7 @@
 import { useCallback } from 'react'
 import { Headphones, Pause, Play, Upload } from 'lucide-react'
 import { getAudioEngine } from '../../audio/AudioEngine'
+import { analyzeFileBpm } from '../../audio/bpmAnalysis'
 import { formatTime, progressFromTime, timeFromProgress } from '../../audio/transport'
 import { decodeWaveform } from '../../audio/waveform'
 import { EffectsPanel } from '../../components/EffectsPanel'
@@ -19,6 +20,7 @@ export function Deck({ side }: { side: DeckId }) {
   const setDeckEq = useMixerStore((state) => state.setDeckEq)
   const setDeckWaveform = useMixerStore((state) => state.setDeckWaveform)
   const setDeckAnalysis = useMixerStore((state) => state.setDeckAnalysis)
+  const setDeckBpmAnalysis = useMixerStore((state) => state.setDeckBpmAnalysis)
   const setDeckCue = useMixerStore((state) => state.setDeckCue)
   const engine = getAudioEngine()
   const readLevel = useCallback(() => engine.getDeckLevel(side), [engine, side])
@@ -35,12 +37,20 @@ export function Deck({ side }: { side: DeckId }) {
     if (!file) return
     loadTrack(side, file.name)
     setDeckAnalysis(side, true)
+    setDeckBpmAnalysis(side, 'analyzing', 0, 0)
     engine.setDeckPitch(side, deck.pitchPercent)
     engine.setDeckTrim(side, deck.trim)
     engine.setDeckVolume(side, deck.volume)
     engine.setDeckFilter(side, deck.filter)
     engine.setDeckEcho(side, { enabled: deck.echoEnabled, mix: deck.echoMix, timeMs: deck.echoTimeMs, feedback: deck.echoFeedback })
     engine.setDeckReverb(side, { enabled: deck.reverbEnabled, mix: deck.reverbMix })
+
+    const bpmPromise = analyzeFileBpm(file, engine.context)
+      .then((result) => {
+        if (result) setDeckBpmAnalysis(side, 'detected', result.bpm, result.confidence)
+        else setDeckBpmAnalysis(side, 'failed', 0, 0)
+      })
+      .catch(() => setDeckBpmAnalysis(side, 'failed', 0, 0))
 
     try {
       const [, waveform] = await Promise.all([
@@ -58,6 +68,8 @@ export function Deck({ side }: { side: DeckId }) {
     } catch (error) {
       setDeckAnalysis(side, false, error instanceof Error ? error.message : 'Audio analysis failed')
     }
+
+    await bpmPromise
   }
 
   const togglePlayback = async () => {
