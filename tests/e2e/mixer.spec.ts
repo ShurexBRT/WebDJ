@@ -23,6 +23,8 @@ test('renders the complete dual-deck workspace', async ({ page }) => {
   await expect(page.getByRole('region', { name: 'Effects deck B' })).toBeVisible()
   await expect(page.getByRole('region', { name: 'Tempo deck A' })).toBeVisible()
   await expect(page.getByRole('region', { name: 'Tempo deck B' })).toBeVisible()
+  await expect(page.getByLabel('BPM analysis deck A')).toContainText('Load a track for auto BPM')
+  await expect(page.getByLabel('BPM analysis deck B')).toContainText('Load a track for auto BPM')
 })
 
 test('loads independent local files into both decks', async ({ page }) => {
@@ -33,6 +35,7 @@ test('loads independent local files into both decks', async ({ page }) => {
   await expect(page.getByTestId('deck-B')).toContainText('second-track.wav')
   await expect(page.getByLabel('Play deck A')).toBeEnabled()
   await expect(page.getByLabel('Play deck B')).toBeEnabled()
+  await expect(page.getByLabel('BPM analysis deck A')).toContainText(/Analyzing BPM|BPM not detected/)
 })
 
 test('changes gain and mixer controls without coupling the decks', async ({ page }) => {
@@ -59,6 +62,8 @@ test('sets pitch independently and syncs one deck BPM to the other', async ({ pa
   await page.getByLabel('BPM deck B').fill('125')
   await page.getByLabel('Pitch deck A').fill('4')
 
+  await expect(page.getByLabel('BPM analysis deck A')).toContainText('Manual BPM')
+  await expect(page.getByLabel('BPM analysis deck B')).toContainText('Manual BPM')
   await expect(page.getByLabel('Pitch deck A')).toHaveValue('4')
   await expect(page.getByLabel('Pitch deck B')).toHaveValue('0')
   await expect(page.getByLabel('Sync deck B to deck A')).toBeEnabled()

@@ -13,6 +13,14 @@ export function TempoControls({ deckId }: { deckId: DeckId }) {
   const engine = getAudioEngine()
   const displayedBpm = effectiveBpm(deck.bpm, deck.pitchPercent)
 
+  const analysisLabel = (() => {
+    if (deck.bpmAnalysisStatus === 'analyzing') return 'Analyzing BPM…'
+    if (deck.bpmAnalysisStatus === 'detected') return `Auto detected · ${Math.round(deck.bpmConfidence * 100)}% confidence`
+    if (deck.bpmAnalysisStatus === 'manual') return 'Manual BPM'
+    if (deck.bpmAnalysisStatus === 'failed') return 'BPM not detected · enter manually'
+    return 'Load a track for auto BPM'
+  })()
+
   const applyPitch = (pitchPercent: number) => {
     setPitch(deckId, pitchPercent)
     engine.setDeckPitch(deckId, pitchPercent)
@@ -32,6 +40,10 @@ export function TempoControls({ deckId }: { deckId: DeckId }) {
         <strong>{displayedBpm > 0 ? `${displayedBpm.toFixed(1)} BPM` : '--.- BPM'}</strong>
       </div>
 
+      <div className="tempo-analysis-status" role="status" aria-label={`BPM analysis deck ${deckId}`}>
+        {analysisLabel}
+      </div>
+
       <label className="control-row compact">
         <span>Base BPM</span>
         <input
@@ -42,7 +54,7 @@ export function TempoControls({ deckId }: { deckId: DeckId }) {
           step="0.1"
           value={deck.bpm || ''}
           placeholder="120.0"
-          onChange={(event) => setBpm(deckId, normalizeBpm(Number(event.target.value)))}
+          onChange={(event) => setBpm(deckId, normalizeBpm(Number(event.target.value)), 'manual')}
         />
       </label>
 

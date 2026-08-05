@@ -4,7 +4,7 @@ import { useMixerStore } from './mixerStore'
 describe('mixer store', () => {
   beforeEach(() => useMixerStore.getState().reset())
 
-  it('loads a track without changing saved channel controls, tempo, FX or cue state', () => {
+  it('loads a new track while preserving mixer controls but resetting track analysis', () => {
     useMixerStore.getState().setDeckTrim('A', 6)
     useMixerStore.getState().setDeckVolume('A', 0.42)
     useMixerStore.getState().setDeckBpm('A', 124)
@@ -18,13 +18,28 @@ describe('mixer store', () => {
     expect(deck.trackName).toBe('track-a.mp3')
     expect(deck.trim).toBe(6)
     expect(deck.volume).toBe(0.42)
-    expect(deck.bpm).toBe(124)
+    expect(deck.bpm).toBe(0)
+    expect(deck.bpmAnalysisStatus).toBe('idle')
     expect(deck.pitchPercent).toBe(3.5)
     expect(deck.cueEnabled).toBe(true)
     expect(deck.filter).toBe(-0.5)
     expect(deck.echoEnabled).toBe(true)
     expect(deck.echoMix).toBe(0.5)
     expect(deck.currentTime).toBe(0)
+  })
+
+  it('stores automatic BPM results with confidence and allows manual override', () => {
+    useMixerStore.getState().setDeckBpmAnalysis('A', 'analyzing', 0, 0)
+    useMixerStore.getState().setDeckBpmAnalysis('A', 'detected', 128.2, 0.81)
+
+    expect(useMixerStore.getState().decks.A.bpm).toBe(128.2)
+    expect(useMixerStore.getState().decks.A.bpmConfidence).toBe(0.81)
+    expect(useMixerStore.getState().decks.A.bpmAnalysisStatus).toBe('detected')
+
+    useMixerStore.getState().setDeckBpm('A', 129)
+    expect(useMixerStore.getState().decks.A.bpm).toBe(129)
+    expect(useMixerStore.getState().decks.A.bpmConfidence).toBe(0)
+    expect(useMixerStore.getState().decks.A.bpmAnalysisStatus).toBe('manual')
   })
 
   it('keeps deck, tempo and FX state independent', () => {
