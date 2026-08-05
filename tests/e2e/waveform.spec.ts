@@ -6,8 +6,8 @@ test.describe('waveform transport', () => {
   })
 
   test('renders accessible waveform controls for both decks', async ({ page }) => {
-    const deckA = page.getByRole('slider', { name: 'Deck A waveform' })
-    const deckB = page.getByRole('slider', { name: 'Deck B waveform' })
+    const deckA = page.getByRole('slider', { name: 'Waveform deck A' })
+    const deckB = page.getByRole('slider', { name: 'Waveform deck B' })
 
     await expect(deckA).toBeVisible()
     await expect(deckB).toBeVisible()
@@ -17,7 +17,7 @@ test.describe('waveform transport', () => {
   })
 
   test('supports keyboard focus without changing unloaded transport state', async ({ page }) => {
-    const deckA = page.getByRole('slider', { name: 'Deck A waveform' })
+    const deckA = page.getByRole('slider', { name: 'Waveform deck A' })
 
     await deckA.focus()
     await expect(deckA).toBeFocused()
