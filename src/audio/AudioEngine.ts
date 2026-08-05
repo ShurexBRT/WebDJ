@@ -1,6 +1,7 @@
 import { calculateCrossfaderGains } from './crossfader'
 import { clampFxMix, delaySecondsFromMs, feedbackGain, filterFrequencyFromPosition } from './fx'
 import { decibelsToGain, readAnalyserLevel } from './meter'
+import { nudgePlaybackRate, type NudgeDirection } from './phaseSync'
 import { calculateMonitorGains, getOutputSupport, normalizeAudioOutputs, type AudioOutputDevice } from './routing'
 import { playbackRateFromPitch } from './tempo'
 import type { DeckId } from '../state/mixerStore'
@@ -35,6 +36,8 @@ type DeckChannel = {
   crossfadeGain: GainNode
   cueGain: GainNode
   objectUrl: string | null
+  basePlaybackRate: number
+  nudgeTimer: number | null
 }
 
 export class AudioEngine {
@@ -180,6 +183,8 @@ export class AudioEngine {
       crossfadeGain,
       cueGain,
       objectUrl: null,
+      basePlaybackRate: 1,
+      nudgeTimer: null,
     }
   }
 
@@ -247,6 +252,7 @@ export class AudioEngine {
     deck.objectUrl = objectUrl
     deck.element.src = objectUrl
     deck.element.currentTime = 0
+    deck.element.playbackRate = deck.basePlaybackRate
 
     deck.element.ontimeupdate = () => {
       callbacks.onTimeUpdate?.(deck.element.currentTime, Number.isFinite(deck.element.duration) ? deck.element.duration : 0)
@@ -274,7 +280,27 @@ export class AudioEngine {
   }
 
   setDeckPitch(deckId: DeckId, pitchPercent: number): void {
-    this.decks[deckId].element.playbackRate = playbackRateFromPitch(pitchPercent)
+    const deck = this.decks[deckId]
+    if (deck.nudgeTimer !== null) {
+      window.clearTimeout(deck.nudgeTimer)
+      deck.nudgeTimer = null
+    }
+    deck.basePlaybackRate = playbackRateFromPitch(pitchPercent)
+    deck.element.playbackRate = deck.basePlaybackRate
+  }
+
+  nudgeDeck(deckId: DeckId, direction: NudgeDirection, amountPercent = 4, durationMs = 180): void {
+    const deck = this.decks[deckId]
+    if (deck.nudgeTimer !== null) window.clearTimeout(deck.nudgeTimer)
+    deck.element.playbackRate = nudgePlaybackRate(deck.basePlaybackRate, direction, amountPercent)
+    deck.nudgeTimer = window.setTimeout(() => {
+      deck.element.playbackRate = deck.basePlaybackRate
+      deck.nudgeTimer = null
+    }, Math.max(40, durationMs))
+  }
+
+  getDeckCurrentTime(deckId: DeckId): number {
+    return this.decks[deckId].element.currentTime
   }
 
   setDeckTrim(deckId: DeckId, decibels: number): void {
@@ -348,6 +374,7 @@ export class AudioEngine {
   async close(): Promise<void> {
     for (const deck of Object.values(this.decks)) {
       deck.element.pause()
+      if (deck.nudgeTimer !== null) window.clearTimeout(deck.nudgeTimer)
       if (deck.objectUrl) URL.revokeObjectURL(deck.objectUrl)
     }
     this.masterOutput.pause()
