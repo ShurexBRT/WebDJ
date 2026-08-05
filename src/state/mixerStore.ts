@@ -12,6 +12,7 @@ export type DeckState = {
   bpm: number
   bpmConfidence: number
   bpmAnalysisStatus: BpmAnalysisStatus
+  beatOffsetSeconds: number
   pitchPercent: number
   currentTime: number
   duration: number
@@ -47,6 +48,7 @@ type MixerState = {
   setDeckVolume: (deckId: DeckId, volume: number) => void
   setDeckBpm: (deckId: DeckId, bpm: number, status?: BpmAnalysisStatus) => void
   setDeckBpmAnalysis: (deckId: DeckId, status: BpmAnalysisStatus, bpm?: number, confidence?: number) => void
+  setDeckBeatOffset: (deckId: DeckId, beatOffsetSeconds: number) => void
   setDeckPitch: (deckId: DeckId, pitchPercent: number) => void
   setDeckTime: (deckId: DeckId, currentTime: number, duration?: number) => void
   setDeckEq: (deckId: DeckId, band: 'low' | 'mid' | 'high', value: number) => void
@@ -75,6 +77,7 @@ const emptyDeck = (): DeckState => ({
   bpm: 0,
   bpmConfidence: 0,
   bpmAnalysisStatus: 'idle',
+  beatOffsetSeconds: 0,
   pitchPercent: 0,
   currentTime: 0,
   duration: 0,
@@ -144,6 +147,9 @@ export const useMixerStore = create<MixerState>((set) => ({
         bpmAnalysisStatus,
       },
     },
+  })),
+  setDeckBeatOffset: (deckId, beatOffsetSeconds) => set((state) => ({
+    decks: { ...state.decks, [deckId]: { ...state.decks[deckId], beatOffsetSeconds } },
   })),
   setDeckPitch: (deckId, pitchPercent) => set((state) => ({ decks: { ...state.decks, [deckId]: { ...state.decks[deckId], pitchPercent } } })),
   setDeckTime: (deckId, currentTime, duration) => set((state) => ({
