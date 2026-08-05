@@ -8,6 +8,7 @@ describe('mixer store', () => {
     useMixerStore.getState().setDeckTrim('A', 6)
     useMixerStore.getState().setDeckVolume('A', 0.42)
     useMixerStore.getState().setDeckBpm('A', 124)
+    useMixerStore.getState().setDeckBeatOffset('A', 0.17)
     useMixerStore.getState().setDeckPitch('A', 3.5)
     useMixerStore.getState().setDeckCue('A', true)
     useMixerStore.getState().setDeckFilter('A', -0.5)
@@ -20,6 +21,7 @@ describe('mixer store', () => {
     expect(deck.volume).toBe(0.42)
     expect(deck.bpm).toBe(0)
     expect(deck.bpmAnalysisStatus).toBe('idle')
+    expect(deck.beatOffsetSeconds).toBe(0)
     expect(deck.pitchPercent).toBe(3.5)
     expect(deck.cueEnabled).toBe(true)
     expect(deck.filter).toBe(-0.5)
@@ -42,10 +44,11 @@ describe('mixer store', () => {
     expect(useMixerStore.getState().decks.A.bpmAnalysisStatus).toBe('manual')
   })
 
-  it('keeps deck, tempo and FX state independent', () => {
+  it('keeps deck, tempo, beat-grid and FX state independent', () => {
     useMixerStore.getState().loadTrack('A', 'a.wav')
     useMixerStore.getState().setPlaying('A', true)
     useMixerStore.getState().setDeckBpm('A', 120)
+    useMixerStore.getState().setDeckBeatOffset('A', 0.12)
     useMixerStore.getState().setDeckPitch('A', 4)
     useMixerStore.getState().setDeckCue('B', true)
     useMixerStore.getState().setDeckReverb('B', { reverbEnabled: true, reverbMix: 0.4 })
@@ -54,6 +57,8 @@ describe('mixer store', () => {
     expect(useMixerStore.getState().decks.B.isPlaying).toBe(false)
     expect(useMixerStore.getState().decks.A.bpm).toBe(120)
     expect(useMixerStore.getState().decks.B.bpm).toBe(0)
+    expect(useMixerStore.getState().decks.A.beatOffsetSeconds).toBe(0.12)
+    expect(useMixerStore.getState().decks.B.beatOffsetSeconds).toBe(0)
     expect(useMixerStore.getState().decks.A.pitchPercent).toBe(4)
     expect(useMixerStore.getState().decks.B.pitchPercent).toBe(0)
     expect(useMixerStore.getState().decks.A.cueEnabled).toBe(false)
