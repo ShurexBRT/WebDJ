@@ -41,13 +41,22 @@ function openDatabase(): Promise<IDBDatabase | null> {
 export async function fingerprintFile(file: File): Promise<string> {
   const chunkSize = 64 * 1024
   const head = await file.slice(0, chunkSize).arrayBuffer()
+  const middleStart = Math.max(0, Math.floor(file.size / 2 - chunkSize / 2))
+  const middle = file.size > chunkSize * 2
+    ? await file.slice(middleStart, middleStart + chunkSize).arrayBuffer()
+    : new ArrayBuffer(0)
   const tailStart = Math.max(0, file.size - chunkSize)
-  const tail = tailStart > 0 ? await file.slice(tailStart).arrayBuffer() : new ArrayBuffer(0)
-  const metadata = new TextEncoder().encode(`${file.name}|${file.size}|${file.lastModified}|${file.type}`)
-  const bytes = new Uint8Array(metadata.byteLength + head.byteLength + tail.byteLength)
-  bytes.set(metadata, 0)
-  bytes.set(new Uint8Array(head), metadata.byteLength)
-  bytes.set(new Uint8Array(tail), metadata.byteLength + head.byteLength)
+  const tail = tailStart > chunkSize ? await file.slice(tailStart).arrayBuffer() : new ArrayBuffer(0)
+  const metadata = new TextEncoder().encode(`${file.name}|${file.size}|${file.type}`)
+  const bytes = new Uint8Array(metadata.byteLength + head.byteLength + middle.byteLength + tail.byteLength)
+  let offset = 0
+  bytes.set(metadata, offset)
+  offset += metadata.byteLength
+  bytes.set(new Uint8Array(head), offset)
+  offset += head.byteLength
+  bytes.set(new Uint8Array(middle), offset)
+  offset += middle.byteLength
+  bytes.set(new Uint8Array(tail), offset)
 
   if (!globalThis.crypto?.subtle) {
     let hash = 2166136261
