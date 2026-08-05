@@ -13,8 +13,12 @@ test('renders the complete dual-deck workspace', async ({ page }) => {
   await expect(page.getByTestId('deck-A')).toBeVisible()
   await expect(page.getByTestId('deck-B')).toBeVisible()
   await expect(page.getByLabel('Crossfader')).toHaveValue('0')
+  await expect(page.getByLabel('Master volume')).toHaveValue('0.9')
   await expect(page.getByLabel('Cue volume')).toHaveValue('0.8')
   await expect(page.getByLabel('Cue master mix')).toHaveValue('0')
+  await expect(page.getByRole('meter', { name: 'Deck A level' })).toBeVisible()
+  await expect(page.getByRole('meter', { name: 'Deck B level' })).toBeVisible()
+  await expect(page.getByRole('meter', { name: 'Master level' })).toBeVisible()
 })
 
 test('loads independent local files into both decks', async ({ page }) => {
@@ -29,16 +33,21 @@ test('loads independent local files into both decks', async ({ page }) => {
   await expect(page.getByLabel('Play deck B')).toBeEnabled()
 })
 
-test('changes mixer controls without coupling the decks', async ({ page }) => {
+test('changes gain and mixer controls without coupling the decks', async ({ page }) => {
   await page.goto('/')
 
+  await page.getByLabel('Trim deck A').fill('6')
   await page.getByLabel('Channel level deck A').fill('0.25')
   await page.getByLabel('low EQ deck B').fill('-12')
+  await page.getByLabel('Master volume').fill('0.65')
   await page.getByLabel('Crossfader').fill('1')
 
+  await expect(page.getByLabel('Trim deck A')).toHaveValue('6')
+  await expect(page.getByLabel('Trim deck B')).toHaveValue('0')
   await expect(page.getByLabel('Channel level deck A')).toHaveValue('0.25')
   await expect(page.getByLabel('Channel level deck B')).toHaveValue('0.8')
   await expect(page.getByLabel('low EQ deck B')).toHaveValue('-12')
+  await expect(page.getByLabel('Master volume')).toHaveValue('0.65')
   await expect(page.getByLabel('Crossfader')).toHaveValue('1')
 })
 

@@ -6,6 +6,7 @@ export type DeckId = 'A' | 'B'
 export type DeckState = {
   trackName: string | null
   isPlaying: boolean
+  trim: number
   volume: number
   currentTime: number
   duration: number
@@ -21,6 +22,7 @@ export type DeckState = {
 type MixerState = {
   decks: Record<DeckId, DeckState>
   crossfader: number
+  masterVolume: number
   cueVolume: number
   cueMix: number
   outputDevices: AudioOutputDevice[]
@@ -29,6 +31,7 @@ type MixerState = {
   outputSelectionSupported: boolean
   loadTrack: (deckId: DeckId, trackName: string) => void
   setPlaying: (deckId: DeckId, isPlaying: boolean) => void
+  setDeckTrim: (deckId: DeckId, trim: number) => void
   setDeckVolume: (deckId: DeckId, volume: number) => void
   setDeckTime: (deckId: DeckId, currentTime: number, duration?: number) => void
   setDeckEq: (deckId: DeckId, band: 'low' | 'mid' | 'high', value: number) => void
@@ -36,6 +39,7 @@ type MixerState = {
   setDeckAnalysis: (deckId: DeckId, isAnalyzing: boolean, error?: string | null) => void
   setDeckCue: (deckId: DeckId, enabled: boolean) => void
   setCrossfader: (value: number) => void
+  setMasterVolume: (value: number) => void
   setCueVolume: (value: number) => void
   setCueMix: (value: number) => void
   setOutputDevices: (devices: AudioOutputDevice[]) => void
@@ -48,6 +52,7 @@ type MixerState = {
 const emptyDeck = (): DeckState => ({
   trackName: null,
   isPlaying: false,
+  trim: 0,
   volume: 0.8,
   currentTime: 0,
   duration: 0,
@@ -63,6 +68,7 @@ const emptyDeck = (): DeckState => ({
 const initialState = () => ({
   decks: { A: emptyDeck(), B: emptyDeck() } as Record<DeckId, DeckState>,
   crossfader: 0,
+  masterVolume: 0.9,
   cueVolume: 0.8,
   cueMix: 0,
   outputDevices: [] as AudioOutputDevice[],
@@ -78,6 +84,7 @@ export const useMixerStore = create<MixerState>((set) => ({
       ...state.decks,
       [deckId]: {
         ...emptyDeck(),
+        trim: state.decks[deckId].trim,
         volume: state.decks[deckId].volume,
         cueEnabled: state.decks[deckId].cueEnabled,
         trackName,
@@ -86,6 +93,9 @@ export const useMixerStore = create<MixerState>((set) => ({
   })),
   setPlaying: (deckId, isPlaying) => set((state) => ({
     decks: { ...state.decks, [deckId]: { ...state.decks[deckId], isPlaying } },
+  })),
+  setDeckTrim: (deckId, trim) => set((state) => ({
+    decks: { ...state.decks, [deckId]: { ...state.decks[deckId], trim } },
   })),
   setDeckVolume: (deckId, volume) => set((state) => ({
     decks: { ...state.decks, [deckId]: { ...state.decks[deckId], volume } },
@@ -116,6 +126,7 @@ export const useMixerStore = create<MixerState>((set) => ({
     decks: { ...state.decks, [deckId]: { ...state.decks[deckId], cueEnabled } },
   })),
   setCrossfader: (crossfader) => set({ crossfader }),
+  setMasterVolume: (masterVolume) => set({ masterVolume }),
   setCueVolume: (cueVolume) => set({ cueVolume }),
   setCueMix: (cueMix) => set({ cueMix }),
   setOutputDevices: (outputDevices) => set({ outputDevices }),

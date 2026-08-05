@@ -3,6 +3,7 @@ import { Headphones, Music2, Pause, Play, RefreshCw, SlidersHorizontal, Upload }
 import { getAudioEngine } from './audio/AudioEngine'
 import { decodeWaveform } from './audio/waveform'
 import { formatTime, progressFromTime, timeFromProgress } from './audio/transport'
+import { LevelMeter } from './components/LevelMeter'
 import { Waveform } from './components/Waveform'
 import { useMixerStore, type DeckId } from './state/mixerStore'
 
@@ -10,6 +11,7 @@ function Deck({ side }: { side: DeckId }) {
   const deck = useMixerStore((state) => state.decks[side])
   const loadTrack = useMixerStore((state) => state.loadTrack)
   const setPlaying = useMixerStore((state) => state.setPlaying)
+  const setTrim = useMixerStore((state) => state.setDeckTrim)
   const setVolume = useMixerStore((state) => state.setDeckVolume)
   const setDeckTime = useMixerStore((state) => state.setDeckTime)
   const setDeckEq = useMixerStore((state) => state.setDeckEq)
@@ -18,6 +20,7 @@ function Deck({ side }: { side: DeckId }) {
   const setDeckCue = useMixerStore((state) => state.setDeckCue)
 
   const engine = getAudioEngine()
+  const readLevel = useCallback(() => engine.getDeckLevel(side), [engine, side])
   const progress = progressFromTime(deck.currentTime, deck.duration)
   const accent = side === 'A' ? '#29b6ff' : '#ff9a3d'
 
@@ -32,6 +35,7 @@ function Deck({ side }: { side: DeckId }) {
 
     loadTrack(side, file.name)
     setDeckAnalysis(side, true)
+    engine.setDeckTrim(side, deck.trim)
     engine.setDeckVolume(side, deck.volume)
 
     try {
@@ -135,39 +139,61 @@ function Deck({ side }: { side: DeckId }) {
         </button>
       </div>
 
-      <div className="deck-controls">
-        {(['high', 'mid', 'low'] as const).map((band) => (
-          <label className="control-row compact" key={band}>
-            <span>{band}</span>
+      <div className="channel-strip">
+        <LevelMeter label={`Deck ${side} level`} readLevel={readLevel} />
+        <div className="channel-controls">
+          <label className="control-row">
+            <span>Trim {deck.trim > 0 ? `+${deck.trim}` : deck.trim} dB</span>
             <input
-              aria-label={`${band} EQ deck ${side}`}
+              aria-label={`Trim deck ${side}`}
               type="range"
-              min="-24"
+              min="-12"
               max="12"
               step="1"
-              value={deck[band]}
-              onChange={(event) => changeEq(band, Number(event.target.value))}
+              value={deck.trim}
+              onChange={(event) => {
+                const value = Number(event.target.value)
+                setTrim(side, value)
+                engine.setDeckTrim(side, value)
+              }}
             />
           </label>
-        ))}
-      </div>
 
-      <label className="control-row">
-        <span>Channel level</span>
-        <input
-          aria-label={`Channel level deck ${side}`}
-          type="range"
-          min="0"
-          max="1"
-          step="0.01"
-          value={deck.volume}
-          onChange={(event) => {
-            const value = Number(event.target.value)
-            setVolume(side, value)
-            engine.setDeckVolume(side, value)
-          }}
-        />
-      </label>
+          <div className="deck-controls">
+            {(['high', 'mid', 'low'] as const).map((band) => (
+              <label className="control-row compact" key={band}>
+                <span>{band}</span>
+                <input
+                  aria-label={`${band} EQ deck ${side}`}
+                  type="range"
+                  min="-24"
+                  max="12"
+                  step="1"
+                  value={deck[band]}
+                  onChange={(event) => changeEq(band, Number(event.target.value))}
+                />
+              </label>
+            ))}
+          </div>
+
+          <label className="control-row">
+            <span>Channel level</span>
+            <input
+              aria-label={`Channel level deck ${side}`}
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={deck.volume}
+              onChange={(event) => {
+                const value = Number(event.target.value)
+                setVolume(side, value)
+                engine.setDeckVolume(side, value)
+              }}
+            />
+          </label>
+        </div>
+      </div>
 
       <label className="load-track-button">
         <Upload size={17} /> Load local track
@@ -294,24 +320,48 @@ function AudioSettings() {
 
 function App() {
   const crossfader = useMixerStore((state) => state.crossfader)
+  const masterVolume = useMixerStore((state) => state.masterVolume)
   const cueVolume = useMixerStore((state) => state.cueVolume)
   const cueMix = useMixerStore((state) => state.cueMix)
   const setCrossfader = useMixerStore((state) => state.setCrossfader)
+  const setMasterVolume = useMixerStore((state) => state.setMasterVolume)
   const setCueVolume = useMixerStore((state) => state.setCueVolume)
   const setCueMix = useMixerStore((state) => state.setCueMix)
+  const engine = getAudioEngine()
+  const readMasterLevel = useCallback(() => engine.getMasterLevel(), [engine])
 
   return (
     <main className="app-shell">
       <header className="topbar">
         <div className="brand"><Music2 /> <span>WebDJ</span></div>
-        <div className="status"><span className="status-dot" /> Dual-deck audio with cue routing</div>
+        <div className="status"><span className="status-dot" /> Cue routing and live metering enabled</div>
       </header>
 
       <div className="workspace">
         <Deck side="A" />
         <section className="mixer">
           <div className="mixer-title"><SlidersHorizontal /> MIXER</div>
-          <p className="mixer-copy">Cue is pre-fader, so a lowered channel can still be previewed in headphones.</p>
+          <p className="mixer-copy">Trim feeds the EQ and meter before the channel fader. Cue remains pre-fader.</p>
+
+          <div className="master-strip">
+            <LevelMeter label="Master level" readLevel={readMasterLevel} />
+            <label className="control-row">
+              <span>Master volume</span>
+              <input
+                aria-label="Master volume"
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value={masterVolume}
+                onChange={(event) => {
+                  const value = Number(event.target.value)
+                  setMasterVolume(value)
+                  engine.setMasterVolume(value)
+                }}
+              />
+            </label>
+          </div>
 
           <div className="monitor-controls">
             <label className="control-row">
@@ -326,7 +376,7 @@ function App() {
                 onChange={(event) => {
                   const value = Number(event.target.value)
                   setCueVolume(value)
-                  getAudioEngine().setCueVolume(value)
+                  engine.setCueVolume(value)
                 }}
               />
             </label>
@@ -342,7 +392,7 @@ function App() {
                 onChange={(event) => {
                   const value = Number(event.target.value)
                   setCueMix(value)
-                  getAudioEngine().setCueMix(value)
+                  engine.setCueMix(value)
                 }}
               />
               <div className="cross-labels"><span>CUE</span><span>MASTER</span></div>
@@ -361,7 +411,7 @@ function App() {
               onChange={(event) => {
                 const value = Number(event.target.value)
                 setCrossfader(value)
-                getAudioEngine().setCrossfader(value)
+                engine.setCrossfader(value)
               }}
             />
             <div className="cross-labels"><span>A</span><span>B</span></div>
