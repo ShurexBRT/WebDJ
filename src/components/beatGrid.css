@@ -1,7 +1,5 @@
 .beat-grid-controls {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 112px;
-  align-items: center;
   gap: 6px;
   padding: 6px 7px;
   border: 1px solid #293039;
@@ -13,9 +11,11 @@
 .beat-grid-status span { display: flex; align-items: center; gap: 4px; color: #737d88; font-size: 6px; font-weight: 900; letter-spacing: .09em; }
 .beat-grid-status strong { color: var(--deck-accent); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 8px; white-space: nowrap; }
 
+.beat-grid-group { display: grid; grid-template-columns: 52px minmax(0, 1fr); align-items: center; gap: 5px; }
+.beat-grid-group small { color: #626d78; font-size: 6px; font-weight: 900; letter-spacing: .06em; }
 .beat-grid-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; }
 .beat-grid-actions button {
-  min-height: 25px;
+  min-height: 24px;
   border-radius: 3px;
   border: 1px solid #303741;
   background: linear-gradient(180deg, #161a1f, #0a0c0f);
