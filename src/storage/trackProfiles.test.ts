@@ -21,12 +21,12 @@ const profile = (id: string): TrackProfile => ({
 describe('track profile persistence', () => {
   beforeEach(async () => clearTrackProfiles())
 
-  it('creates stable fingerprints and distinguishes changed files', async () => {
+  it('creates content-stable fingerprints and distinguishes changed files', async () => {
     const first = new File(['same audio'], 'track.wav', { type: 'audio/wav', lastModified: 10 })
-    const second = new File(['same audio'], 'track.wav', { type: 'audio/wav', lastModified: 10 })
+    const copiedLater = new File(['same audio'], 'track.wav', { type: 'audio/wav', lastModified: 99_999 })
     const changed = new File(['changed audio'], 'track.wav', { type: 'audio/wav', lastModified: 10 })
 
-    expect(await fingerprintFile(first)).toBe(await fingerprintFile(second))
+    expect(await fingerprintFile(first)).toBe(await fingerprintFile(copiedLater))
     expect(await fingerprintFile(first)).not.toBe(await fingerprintFile(changed))
   })
 
