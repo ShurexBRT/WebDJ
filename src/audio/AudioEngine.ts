@@ -1,4 +1,5 @@
 import { calculateCrossfaderGains } from './crossfader'
+import { clampFxMix, delaySecondsFromMs, feedbackGain, filterFrequencyFromPosition } from './fx'
 import { decibelsToGain, readAnalyserLevel } from './meter'
 import { calculateMonitorGains, getOutputSupport, normalizeAudioOutputs, type AudioOutputDevice } from './routing'
 import type { DeckId } from '../state/mixerStore'
@@ -19,8 +20,16 @@ type DeckChannel = {
   low: BiquadFilterNode
   mid: BiquadFilterNode
   high: BiquadFilterNode
+  filter: BiquadFilterNode
+  dryGain: GainNode
+  echoSend: GainNode
+  echoDelay: DelayNode
+  echoFeedback: GainNode
+  reverbSend: GainNode
+  reverb: ConvolverNode
+  fxReturn: GainNode
   analyser: AnalyserNode
-  meterBuffer: Uint8Array
+  meterBuffer: Uint8Array<ArrayBuffer>
   channelGain: GainNode
   crossfadeGain: GainNode
   cueGain: GainNode
@@ -31,7 +40,7 @@ export class AudioEngine {
   readonly context: AudioContext
   private readonly masterGain: GainNode
   private readonly masterAnalyser: AnalyserNode
-  private readonly masterMeterBuffer: Uint8Array
+  private readonly masterMeterBuffer: Uint8Array<ArrayBuffer>
   private readonly masterDestination: MediaStreamAudioDestinationNode
   private readonly cueDestination: MediaStreamAudioDestinationNode
   private readonly cueBus: GainNode
@@ -48,7 +57,7 @@ export class AudioEngine {
     this.masterGain = this.context.createGain()
     this.masterGain.gain.value = 0.9
     this.masterAnalyser = this.createAnalyser()
-    this.masterMeterBuffer = new Uint8Array(this.masterAnalyser.fftSize)
+    this.masterMeterBuffer = new Uint8Array(new ArrayBuffer(this.masterAnalyser.fftSize))
 
     this.masterDestination = this.context.createMediaStreamDestination()
     this.cueDestination = this.context.createMediaStreamDestination()
@@ -92,6 +101,19 @@ export class AudioEngine {
     return analyser
   }
 
+  private createImpulse(seconds = 2.2, decay = 2.8): AudioBuffer {
+    const length = Math.floor(this.context.sampleRate * seconds)
+    const impulse = this.context.createBuffer(2, length, this.context.sampleRate)
+    for (let channel = 0; channel < impulse.numberOfChannels; channel += 1) {
+      const data = impulse.getChannelData(channel)
+      for (let index = 0; index < length; index += 1) {
+        const envelope = Math.pow(1 - index / length, decay)
+        data[index] = (Math.random() * 2 - 1) * envelope
+      }
+    }
+    return impulse
+  }
+
   private createDeckChannel(): DeckChannel {
     const element = new Audio()
     element.preload = 'metadata'
@@ -101,16 +123,39 @@ export class AudioEngine {
     const low = this.createEqBand('lowshelf', 180)
     const mid = this.createEqBand('peaking', 1_200, 0.8)
     const high = this.createEqBand('highshelf', 6_500)
+    const filter = this.createEqBand('lowpass', 20_000, 0.7)
+    const dryGain = this.context.createGain()
+    const echoSend = this.context.createGain()
+    const echoDelay = this.context.createDelay(1.5)
+    const echoFeedback = this.context.createGain()
+    const reverbSend = this.context.createGain()
+    const reverb = this.context.createConvolver()
+    const fxReturn = this.context.createGain()
     const analyser = this.createAnalyser()
-    const meterBuffer = new Uint8Array(analyser.fftSize)
+    const meterBuffer = new Uint8Array(new ArrayBuffer(analyser.fftSize))
     const channelGain = this.context.createGain()
     const crossfadeGain = this.context.createGain()
     const cueGain = this.context.createGain()
+
+    filter.frequency.value = 20_000
+    dryGain.gain.value = 1
+    echoSend.gain.value = 0
+    echoDelay.delayTime.value = 0.375
+    echoFeedback.gain.value = 0.35
+    reverbSend.gain.value = 0
+    reverb.buffer = this.createImpulse()
+    fxReturn.gain.value = 1
     cueGain.gain.value = 0
 
-    source.connect(inputGain).connect(low).connect(mid).connect(high)
-    high.connect(analyser).connect(channelGain).connect(crossfadeGain).connect(this.masterGain)
-    high.connect(cueGain).connect(this.cueBus)
+    source.connect(inputGain).connect(low).connect(mid).connect(high).connect(filter)
+    filter.connect(dryGain)
+    filter.connect(echoSend).connect(echoDelay).connect(echoFeedback).connect(echoDelay)
+    echoDelay.connect(fxReturn)
+    filter.connect(reverbSend).connect(reverb).connect(fxReturn)
+    dryGain.connect(analyser)
+    fxReturn.connect(analyser)
+    analyser.connect(channelGain).connect(crossfadeGain).connect(this.masterGain)
+    filter.connect(cueGain).connect(this.cueBus)
 
     return {
       element,
@@ -119,6 +164,14 @@ export class AudioEngine {
       low,
       mid,
       high,
+      filter,
+      dryGain,
+      echoSend,
+      echoDelay,
+      echoFeedback,
+      reverbSend,
+      reverb,
+      fxReturn,
       analyser,
       meterBuffer,
       channelGain,
@@ -225,6 +278,25 @@ export class AudioEngine {
   setDeckVolume(deckId: DeckId, value: number): void {
     const gain = Math.min(1, Math.max(0, value))
     this.decks[deckId].channelGain.gain.setTargetAtTime(gain, this.context.currentTime, 0.01)
+  }
+
+  setDeckFilter(deckId: DeckId, position: number): void {
+    const deck = this.decks[deckId]
+    const safe = Math.min(1, Math.max(-1, position))
+    deck.filter.type = safe >= 0 ? 'highpass' : 'lowpass'
+    deck.filter.frequency.setTargetAtTime(filterFrequencyFromPosition(safe), this.context.currentTime, 0.015)
+    deck.filter.Q.setTargetAtTime(0.7 + Math.abs(safe) * 5, this.context.currentTime, 0.015)
+  }
+
+  setDeckEcho(deckId: DeckId, options: { enabled: boolean; mix: number; timeMs: number; feedback: number }): void {
+    const deck = this.decks[deckId]
+    deck.echoSend.gain.setTargetAtTime(options.enabled ? clampFxMix(options.mix) : 0, this.context.currentTime, 0.02)
+    deck.echoDelay.delayTime.setTargetAtTime(delaySecondsFromMs(options.timeMs), this.context.currentTime, 0.02)
+    deck.echoFeedback.gain.setTargetAtTime(feedbackGain(options.feedback), this.context.currentTime, 0.02)
+  }
+
+  setDeckReverb(deckId: DeckId, options: { enabled: boolean; mix: number }): void {
+    this.decks[deckId].reverbSend.gain.setTargetAtTime(options.enabled ? clampFxMix(options.mix) : 0, this.context.currentTime, 0.02)
   }
 
   setMasterVolume(value: number): void {
