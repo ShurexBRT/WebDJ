@@ -23,12 +23,6 @@ export function CueLoopControls({ deckId }: { deckId: DeckId }) {
     setDeckTime(deckId, loopRange.start)
   }, [deck.currentTime, deckId, engine, loopEnabled, loopRange, setDeckTime])
 
-  useEffect(() => {
-    setCuePoint(null)
-    setLoopRange(null)
-    setLoopEnabled(false)
-  }, [deck.trackName])
-
   const jumpTo = (time: number) => {
     engine.seek(deckId, time)
     setDeckTime(deckId, time)
@@ -49,47 +43,23 @@ export function CueLoopControls({ deckId }: { deckId: DeckId }) {
   return (
     <section className="cue-loop-panel" aria-label={`Cue and loop deck ${deckId}`}>
       <div className="cue-loop-row">
-        <button
-          type="button"
-          aria-label={`Set cue point deck ${deckId}`}
-          disabled={!deck.trackName}
-          onClick={() => setCuePoint(deck.currentTime)}
-        >
+        <button type="button" aria-label={`Set cue point deck ${deckId}`} disabled={!deck.trackName} onClick={() => setCuePoint(deck.currentTime)}>
           <Flag size={15} /> SET CUE
         </button>
-        <button
-          type="button"
-          aria-label={`Return to cue point deck ${deckId}`}
-          disabled={cuePoint === null}
-          onClick={() => cuePoint !== null && jumpTo(cuePoint)}
-        >
+        <button type="button" aria-label={`Return to cue point deck ${deckId}`} disabled={cuePoint === null} onClick={() => cuePoint !== null && jumpTo(cuePoint)}>
           <CornerDownLeft size={15} /> {cuePoint === null ? '--:--' : formatTime(cuePoint)}
         </button>
       </div>
 
       <div className="loop-size-row" aria-label={`Loop size deck ${deckId}`}>
         {LOOP_BEAT_OPTIONS.map((beats) => (
-          <button
-            key={beats}
-            type="button"
-            className={loopBeats === beats ? 'active' : ''}
-            aria-pressed={loopBeats === beats}
-            aria-label={`${beats} beat loop deck ${deckId}`}
-            onClick={() => setLoopBeats(beats)}
-          >
+          <button key={beats} type="button" className={loopBeats === beats ? 'active' : ''} aria-pressed={loopBeats === beats} aria-label={`${beats} beat loop deck ${deckId}`} onClick={() => setLoopBeats(beats)}>
             {beats}
           </button>
         ))}
       </div>
 
-      <button
-        type="button"
-        className={`loop-toggle${loopEnabled ? ' active' : ''}`}
-        aria-label={`Loop deck ${deckId}`}
-        aria-pressed={loopEnabled}
-        disabled={!deck.trackName || bpm <= 0 || deck.duration <= 0}
-        onClick={toggleLoop}
-      >
+      <button type="button" className={`loop-toggle${loopEnabled ? ' active' : ''}`} aria-label={`Loop deck ${deckId}`} aria-pressed={loopEnabled} disabled={!deck.trackName || bpm <= 0 || deck.duration <= 0} onClick={toggleLoop}>
         <Repeat2 size={16} /> {loopEnabled ? 'LOOP ON' : `LOOP ${loopBeats}`}
       </button>
       <small>{bpm <= 0 ? 'BPM required for beat loop' : loopRange ? `${formatTime(loopRange.start)} – ${formatTime(loopRange.end)}` : 'Loop starts at playhead'}</small>
