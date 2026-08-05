@@ -1,8 +1,8 @@
 import { Disc3, Library, Music2, Settings, Waves } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { getAudioEngine } from './audio/AudioEngine'
+import { HorizontalMeter } from './components/HorizontalMeter'
 import { KnobControl } from './components/KnobControl'
-import { LevelMeter } from './components/LevelMeter'
 import { StudioDock } from './components/StudioDock'
 import { Deck } from './features/deck/Deck'
 import { Mixer } from './features/mixer/Mixer'
@@ -46,7 +46,7 @@ function App() {
 
         <div className="header-master">
           <KnobControl label="MASTER" ariaLabel="Header master volume" value={masterVolume} min={0} max={1} step={0.01} accent="#d9e3ea" valueLabel="" onDoubleClick={() => { setMasterVolume(0.9); engine.setMasterVolume(0.9) }} onChange={(value) => { setMasterVolume(value); engine.setMasterVolume(value) }} />
-          <div className="header-meter"><LevelMeter label="Header master level" readLevel={readMasterLevel} /><LevelMeter label="Header master level right" readLevel={readMasterLevel} /></div>
+          <HorizontalMeter label="Header master level" readLevel={readMasterLevel} />
         </div>
 
         <div className="cpu-status"><span>CPU</span><div><i /></div><strong>{navigator.hardwareConcurrency || '—'}C</strong></div>
