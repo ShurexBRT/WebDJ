@@ -28,7 +28,7 @@ export function EffectsPanel({ deckId }: { deckId: DeckId }) {
   }
 
   return (
-    <section className="effects-panel" aria-label={`Effects deck ${deckId}`}>
+    <section id={`effects-deck-${deckId}`} className={`effects-panel effects-panel-${deckId.toLowerCase()}`} aria-label={`Effects deck ${deckId}`}>
       <div className="effects-title"><Waves size={15} /> FX</div>
       <label className="control-row"><span>Filter {deck.filter === 0 ? 'OPEN' : deck.filter < 0 ? 'LPF' : 'HPF'}</span><input aria-label={`Filter deck ${deckId}`} type="range" min="-1" max="1" step="0.01" value={deck.filter} onDoubleClick={() => { setFilter(deckId, 0); engine.setDeckFilter(deckId, 0) }} onChange={(event) => { const value = Number(event.target.value); setFilter(deckId, value); engine.setDeckFilter(deckId, value) }} /></label>
       <div className="effect-block">
