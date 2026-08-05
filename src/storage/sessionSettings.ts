@@ -13,7 +13,10 @@ export type SessionSettings = {
 
 const STORAGE_KEY = 'webdj.session.v1'
 
-const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value))
+const clamp = (value: unknown, min: number, max: number, fallback: number) => {
+  const numeric = Number(value)
+  return Number.isFinite(numeric) ? Math.min(max, Math.max(min, numeric)) : fallback
+}
 
 export function normalizeSessionSettings(value: Partial<SessionSettings>): SessionSettings {
   const trackHistory = Array.isArray(value.trackHistory)
@@ -25,12 +28,12 @@ export function normalizeSessionSettings(value: Partial<SessionSettings>): Sessi
 
   return {
     version: 1,
-    crossfader: clamp(Number(value.crossfader ?? 0), -1, 1),
+    crossfader: clamp(value.crossfader, -1, 1, 0),
     masterDeck: value.masterDeck === 'A' || value.masterDeck === 'B' ? value.masterDeck : null,
     quantizeEnabled: value.quantizeEnabled !== false,
-    masterVolume: clamp(Number(value.masterVolume ?? 0.9), 0, 1),
-    cueVolume: clamp(Number(value.cueVolume ?? 0.8), 0, 1),
-    cueMix: clamp(Number(value.cueMix ?? 0), 0, 1),
+    masterVolume: clamp(value.masterVolume, 0, 1, 0.9),
+    cueVolume: clamp(value.cueVolume, 0, 1, 0.8),
+    cueMix: clamp(value.cueMix, 0, 1, 0),
     trackHistory,
   }
 }
