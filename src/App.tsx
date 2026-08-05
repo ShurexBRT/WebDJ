@@ -1,4 +1,4 @@
-import { Disc3, Library, Music2, Settings, Waves } from 'lucide-react'
+import { Disc3, Library, Magnet, Music2, Settings, Waves } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { getAudioEngine } from './audio/AudioEngine'
 import { HorizontalMeter } from './components/HorizontalMeter'
@@ -15,9 +15,11 @@ function App() {
   const devices = useMixerStore((state) => state.outputDevices)
   const masterOutputId = useMixerStore((state) => state.masterOutputId)
   const masterVolume = useMixerStore((state) => state.masterVolume)
+  const quantizeEnabled = useMixerStore((state) => state.quantizeEnabled)
   const outputSelectionSupported = useMixerStore((state) => state.outputSelectionSupported)
   const setMasterOutputId = useMixerStore((state) => state.setMasterOutputId)
   const setMasterVolume = useMixerStore((state) => state.setMasterVolume)
+  const setQuantizeEnabled = useMixerStore((state) => state.setQuantizeEnabled)
   const engine = getAudioEngine()
   const readMasterLevel = useCallback(() => engine.getMasterLevel(), [engine])
 
@@ -38,6 +40,7 @@ function App() {
           <button className="active" type="button" onClick={() => scrollTo('library-dock')}><Library size={14} /> Library</button>
           <button type="button" onClick={() => scrollTo('effects-deck-A')}><Waves size={14} /> Effects</button>
           <button type="button" onClick={() => scrollTo('sampler-panel')}><Disc3 size={14} /> Sampler</button>
+          <button className={quantizeEnabled ? 'active' : ''} type="button" aria-label="Quantize" aria-pressed={quantizeEnabled} onClick={() => setQuantizeEnabled(!quantizeEnabled)}><Magnet size={14} /> QNTZ</button>
           <button type="button" disabled title="Recording will be added in a later milestone">REC</button>
           <button type="button" onClick={() => scrollTo('audio-routing')}><Settings size={14} /> Settings</button>
         </nav>
