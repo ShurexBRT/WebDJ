@@ -22,7 +22,7 @@ test('keeps mixer deck library and recorder controls accessible after the visual
   await expect(page.getByRole('slider', { name: 'Crossfader', exact: true })).toHaveValue('0')
   await expect(page.getByRole('textbox', { name: 'Search music library', exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Hot cue A deck A', exact: true })).toBeDisabled()
-  await expect(page.getByRole('button', { name: 'Start recording', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Start mix recording', exact: true })).toBeVisible()
 })
 
 test('captures the desktop studio for render comparison', async ({ page }, testInfo) => {
