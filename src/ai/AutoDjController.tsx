@@ -9,7 +9,7 @@ import { useKeyStore } from '../state/keyStore'
 import { useLibraryStore, type LibraryTrack } from '../state/libraryStore'
 import { useMixerStore } from '../state/mixerStore'
 import { freeDeckFor, selectAutoDjReferenceDeck, shouldStartPreparedTransition } from './autoDj'
-import { cancelAutoTransition, startAutoTransition } from './transitionExecutor'
+import { startAutoTransition } from './transitionExecutor'
 import { createAutoTransitionPlan } from './transitionPlan'
 import { rankTrackCandidates, type TrackIntelligence } from './trackScoring'
 
@@ -177,11 +177,6 @@ async function autoDjTick(): Promise<void> {
   }
 
   await selectAndPrepareNextTrack()
-}
-
-export function takeOverAutoDj(): void {
-  cancelAutoTransition()
-  useAutoDjStore.getState().disable()
 }
 
 export function AutoDjController() {
