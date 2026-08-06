@@ -18,7 +18,9 @@ test('publishes an installable manifest and offline shell worker', async ({ page
   const workerResponse = await request.get(new URL('sw.js', manifestResponse.url()).toString())
   expect(workerResponse.ok()).toBe(true)
   const worker = await workerResponse.text()
-  expect(worker).toContain("const CACHE_VERSION = 'webdj-shell-v1'")
+  expect(worker).toContain("const CACHE_PREFIX = 'webdj-shell-'")
+  expect(worker).toContain("const CACHE_VERSION = `${CACHE_PREFIX}v2`")
+  expect(worker).toContain("request.headers.has('range')")
   expect(worker).toContain("request.destination === 'audio'")
 })
 
