@@ -1,3 +1,5 @@
+.deck-utility-stack { grid-template-rows: auto auto 1fr; }
+
 .key-controls {
   display: grid;
   align-content: start;
