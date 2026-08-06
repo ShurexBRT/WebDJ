@@ -47,14 +47,28 @@ export function extensionForAudioType(contentType: string): string {
   return 'mp3'
 }
 
+function isAcceptedAudioType(contentType: string): boolean {
+  const normalized = contentType.toLowerCase().split(';', 1)[0].trim()
+  return normalized.startsWith('audio/') || normalized === 'application/octet-stream'
+}
+
 export async function responseToTrackFile(
   response: Response,
   track: OnlineTrack,
 ): Promise<OnlineTrackFile> {
   if (!response.ok) throw new Error(`Audio request failed with ${response.status}`)
+  const headerType = response.headers.get('content-type') || ''
+  if (headerType && !isAcceptedAudioType(headerType)) {
+    throw new Error(`The source returned ${headerType} instead of audio`)
+  }
+
   const blob = await response.blob()
   if (blob.size === 0) throw new Error('The source returned an empty audio file')
-  const contentType = blob.type || response.headers.get('content-type') || 'audio/mpeg'
+  const contentType = blob.type || headerType || 'audio/mpeg'
+  if (!isAcceptedAudioType(contentType)) {
+    throw new Error(`The source returned ${contentType} instead of audio`)
+  }
+
   const extension = extensionForAudioType(contentType)
   const name = safeFileName(`${track.artist} - ${track.title}`)
   return {
