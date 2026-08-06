@@ -1,4 +1,5 @@
 export type PersistedBpmStatus = 'detected' | 'manual' | 'failed' | 'idle'
+export type PersistedKeyStatus = 'detected' | 'manual' | 'failed' | 'idle'
 
 export type TrackProfile = {
   id: string
@@ -8,6 +9,10 @@ export type TrackProfile = {
   bpm: number
   bpmConfidence: number
   bpmAnalysisStatus: PersistedBpmStatus
+  key: string
+  camelotKey: string
+  keyConfidence: number
+  keyAnalysisStatus: PersistedKeyStatus
   beatOffsetSeconds: number
   barOffsetBeats: number
   waveform: number[]
@@ -68,26 +73,39 @@ export async function fingerprintFile(file: File): Promise<string> {
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')
 }
 
+function normalizeProfile(profile: TrackProfile): TrackProfile {
+  return {
+    ...profile,
+    key: profile.key ?? '',
+    camelotKey: profile.camelotKey ?? '',
+    keyConfidence: profile.keyConfidence ?? 0,
+    keyAnalysisStatus: profile.keyAnalysisStatus ?? 'idle',
+    waveform: profile.waveform.slice(0, 1_200),
+    hotCues: profile.hotCues.slice(0, 6),
+  }
+}
+
 export async function getTrackProfile(id: string): Promise<TrackProfile | null> {
   const database = await openDatabase()
-  if (!database) return memoryProfiles.get(id) ?? null
+  if (!database) {
+    const profile = memoryProfiles.get(id)
+    return profile ? normalizeProfile(profile) : null
+  }
 
   return new Promise((resolve, reject) => {
     const transaction = database.transaction(PROFILE_STORE, 'readonly')
     const request = transaction.objectStore(PROFILE_STORE).get(id)
-    request.onsuccess = () => resolve((request.result as TrackProfile | undefined) ?? null)
+    request.onsuccess = () => {
+      const profile = request.result as TrackProfile | undefined
+      resolve(profile ? normalizeProfile(profile) : null)
+    }
     request.onerror = () => reject(request.error ?? new Error('Unable to read WebDJ track profile'))
     transaction.oncomplete = () => database.close()
   })
 }
 
 export async function saveTrackProfile(profile: TrackProfile): Promise<void> {
-  const normalized: TrackProfile = {
-    ...profile,
-    waveform: profile.waveform.slice(0, 1_200),
-    hotCues: profile.hotCues.slice(0, 6),
-    updatedAt: Date.now(),
-  }
+  const normalized: TrackProfile = normalizeProfile({ ...profile, updatedAt: Date.now() })
   const database = await openDatabase()
   if (!database) {
     memoryProfiles.set(profile.id, normalized)
