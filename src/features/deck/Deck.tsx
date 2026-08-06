@@ -1,8 +1,8 @@
 import { useEffect, useRef, type CSSProperties } from 'react'
 import { ChevronsLeft, ChevronsRight, Headphones, Pause, Play, Upload } from 'lucide-react'
 import { getAudioEngine } from '../../audio/AudioEngine'
-import { phaseAlignedTime, phaseLabel, quantizeTime, signedPhaseErrorSeconds } from '../../audio/phaseSync'
-import { effectiveBpm, pitchToMatchBpm } from '../../audio/tempo'
+import { nextBeatContextTime, phaseAlignedTime, phaseLabel, quantizeTime, signedPhaseErrorSeconds } from '../../audio/phaseSync'
+import { effectiveBpm, pitchToMatchBpm, playbackRateFromPitch } from '../../audio/tempo'
 import { analyzeTrackFile, type TrackAnalysisResult } from '../../audio/trackAnalysis'
 import { formatTime, progressFromTime, timeFromProgress } from '../../audio/transport'
 import { BeatGridControls } from '../../components/BeatGridControls'
@@ -57,14 +57,15 @@ export function Deck({ side }: { side: DeckId }) {
   const syncReferenceId: DeckId = masterDeck && masterDeck !== side ? masterDeck : otherSide
   const syncReference = syncReferenceId === otherSide ? otherDeck : deck
   const syncReferenceBpm = effectiveBpm(syncReference.bpm, syncReference.pitchPercent)
-  const phaseError = side === syncReferenceId ? 0 : signedPhaseErrorSeconds(
+  const phaseErrorBufferSeconds = side === syncReferenceId ? 0 : signedPhaseErrorSeconds(
     deck.currentTime,
-    gridBpm,
+    deck.bpm,
     deck.beatOffsetSeconds,
     syncReference.currentTime,
-    syncReferenceBpm,
+    syncReference.bpm,
     syncReference.beatOffsetSeconds,
   )
+  const phaseError = phaseErrorBufferSeconds / playbackRateFromPitch(deck.pitchPercent)
   const accent = side === 'A' ? '#29b6ff' : '#ff921f'
   const deckStyle = {
     '--deck-accent': accent,
@@ -72,7 +73,7 @@ export function Deck({ side }: { side: DeckId }) {
   } as CSSProperties
 
   const normalizeSeekTime = (time: number) => quantizeEnabled
-    ? quantizeTime(time, gridBpm, deck.beatOffsetSeconds)
+    ? quantizeTime(time, deck.bpm, deck.beatOffsetSeconds)
     : time
 
   const seekToTime = (time: number) => {
@@ -83,7 +84,7 @@ export function Deck({ side }: { side: DeckId }) {
 
   const seekToProgress = (nextProgress: number) => seekToTime(timeFromProgress(nextProgress, deck.duration))
 
-  const syncToReference = () => {
+  const syncToReference = async () => {
     if (side === syncReferenceId) return
     const nextPitch = pitchToMatchBpm(deck.bpm, syncReferenceBpm)
     if (nextPitch === null) return
@@ -93,13 +94,29 @@ export function Deck({ side }: { side: DeckId }) {
 
     const targetTime = engine.getDeckCurrentTime(side) || deck.currentTime
     const referenceTime = engine.getDeckCurrentTime(syncReferenceId) || syncReference.currentTime
-    const targetBpm = effectiveBpm(deck.bpm, nextPitch)
+
+    if (!deck.isPlaying && syncReference.isPlaying && deck.trackName) {
+      const launchOffset = quantizeTime(targetTime, deck.bpm, deck.beatOffsetSeconds)
+      engine.seek(side, launchOffset)
+      setDeckTime(side, launchOffset)
+      const startContextTime = nextBeatContextTime(
+        referenceTime,
+        syncReference.bpm,
+        syncReferenceBpm,
+        syncReference.beatOffsetSeconds,
+        engine.context.currentTime,
+      )
+      const started = await engine.playAt(side, startContextTime)
+      if (started) setPlaying(side, true)
+      return
+    }
+
     const alignedTime = phaseAlignedTime(
       targetTime,
-      targetBpm,
+      deck.bpm,
       deck.beatOffsetSeconds,
       referenceTime,
-      syncReferenceBpm,
+      syncReference.bpm,
       syncReference.beatOffsetSeconds,
     )
     engine.seek(side, alignedTime)
@@ -215,8 +232,8 @@ export function Deck({ side }: { side: DeckId }) {
       setPlaying(side, false)
       return
     }
-    await engine.play(side)
-    setPlaying(side, true)
+    const started = await engine.play(side)
+    if (started) setPlaying(side, true)
   }
 
   const canSync = !isMaster && deck.bpm > 0 && syncReference.bpm > 0
@@ -226,7 +243,7 @@ export function Deck({ side }: { side: DeckId }) {
       <div className="deck-heading">
         <span>DECK {side}</span>
         <div className="deck-heading-actions">
-          <button type="button" disabled={!canSync} onClick={syncToReference} aria-label={`Sync deck ${side} to deck ${syncReferenceId}`}>SYNC</button>
+          <button type="button" disabled={!canSync} onClick={() => { void syncToReference() }} aria-label={`Sync deck ${side} to deck ${syncReferenceId}`}>SYNC</button>
           <button className={isMaster ? 'active' : ''} type="button" aria-pressed={isMaster} onClick={toggleMaster} aria-label={`Make deck ${side} master`}>{isMaster ? 'MASTER ✓' : 'MASTER'}</button>
         </div>
       </div>
