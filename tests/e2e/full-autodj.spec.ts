@@ -28,7 +28,7 @@ test('selects, prepares and continuously executes the next mix', async ({ page }
 
   await page.getByLabel('Seek deck A', { exact: true }).fill('7')
   await expect(panel).toContainText('MIXING', { timeout: 5_000 })
-  await expect(panel).toContainText('1', { timeout: 8_000 })
+  await expect(page.getByLabel('Completed AutoDJ mixes')).toContainText('1', { timeout: 8_000 })
   await expect(page.getByRole('button', { name: 'Play deck A', exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Pause deck B', exact: true })).toBeVisible()
   await expect(page.getByLabel('Make deck B master')).toHaveAttribute('aria-pressed', 'true')
