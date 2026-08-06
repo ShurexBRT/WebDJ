@@ -1,4 +1,4 @@
-import { FolderOpen, History, ListMusic, Search, Sparkles, Trash2, Upload } from 'lucide-react'
+import { Bot, FolderOpen, History, ListMusic, Search, Sparkles, Trash2, Upload } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { effectiveBpm } from '../audio/tempo'
 import { getAudioEngine } from '../audio/AudioEngine'
@@ -6,6 +6,7 @@ import { AudioSettings } from '../features/settings/AudioSettings'
 import { useKeyStore } from '../state/keyStore'
 import { useLibraryStore } from '../state/libraryStore'
 import { useMixerStore, type DeckId } from '../state/mixerStore'
+import { AiAssistantPanel } from './AiAssistantPanel'
 import { ControllerSettings } from './ControllerSettings'
 import { KnobControl } from './KnobControl'
 import { OnlineSourceBrowser } from './OnlineSourceBrowser'
@@ -65,6 +66,7 @@ export function StudioDock() {
           <aside className="library-sidebar">
             <strong>BROWSE</strong>
             {[
+              ['AI Assistant', <Bot size={13} />],
               ['Search', <Search size={13} />],
               ['Local Files', <FolderOpen size={13} />],
               ['History', <History size={13} />],
@@ -110,6 +112,8 @@ export function StudioDock() {
               </>
             )}
 
+            {browseSection === 'AI Assistant' && <AiAssistantPanel />}
+
             {browseSection === 'History' && (
               <div className="library-table history-table" role="table" aria-label="Track history">
                 <div className="history-row library-head" role="row"><span>TRACK</span><span>LAST LOADED</span><span>STATUS</span></div>
@@ -120,7 +124,7 @@ export function StudioDock() {
 
             {browseSection === 'Audius' && <OnlineSourceBrowser source="audius" />}
             {browseSection === 'Jamendo' && <OnlineSourceBrowser source="jamendo" />}
-            {!['Local Files', 'Search', 'History', 'Audius', 'Jamendo'].includes(browseSection) && <div className="library-empty">{browseSection} will use saved local collections in a later library-organizing pass.</div>}
+            {!['Local Files', 'Search', 'AI Assistant', 'History', 'Audius', 'Jamendo'].includes(browseSection) && <div className="library-empty">{browseSection} will use saved local collections in a later library-organizing pass.</div>}
             {isDragging && <div className="library-drop-overlay">DROP AUDIO FILES TO IMPORT</div>}
           </div>
         </div>
