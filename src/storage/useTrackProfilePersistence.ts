@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { useGainAssistStore } from '../state/gainAssistStore'
 import { useKeyStore } from '../state/keyStore'
 import { useMixerStore, type DeckId } from '../state/mixerStore'
 import { saveTrackProfile, type PersistedBpmStatus, type PersistedKeyStatus } from './trackProfiles'
@@ -6,6 +7,7 @@ import { saveTrackProfile, type PersistedBpmStatus, type PersistedKeyStatus } fr
 export function useTrackProfilePersistence(deckId: DeckId): void {
   const deck = useMixerStore((state) => state.decks[deckId])
   const deckKey = useKeyStore((state) => state.decks[deckId])
+  const gainAnalysis = useGainAssistStore((state) => state.decks[deckId].analysis)
 
   useEffect(() => {
     if (!deck.trackId || !deck.trackName || deck.isAnalyzing) return
@@ -30,6 +32,10 @@ export function useTrackProfilePersistence(deckId: DeckId): void {
         camelotKey: deckKey.camelotKey,
         keyConfidence: deckKey.confidence,
         keyAnalysisStatus,
+        gainRecommendationDb: gainAnalysis?.recommendedTrimDb,
+        gainRmsDb: gainAnalysis?.rmsDb,
+        gainPeakDb: gainAnalysis?.peakDb,
+        gainConfidence: gainAnalysis?.confidence,
         beatOffsetSeconds: deck.beatOffsetSeconds,
         barOffsetBeats: deck.barOffsetBeats,
         waveform: deck.waveform,
@@ -60,5 +66,9 @@ export function useTrackProfilePersistence(deckId: DeckId): void {
     deckKey.confidence,
     deckKey.key,
     deckKey.status,
+    gainAnalysis?.confidence,
+    gainAnalysis?.peakDb,
+    gainAnalysis?.recommendedTrimDb,
+    gainAnalysis?.rmsDb,
   ])
 }
