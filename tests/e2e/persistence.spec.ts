@@ -1,10 +1,7 @@
 import { expect, test } from '@playwright/test'
+import { testWavFile } from './fixtures/audio'
 
-const fakeAudio = {
-  name: 'persistent-track.wav',
-  mimeType: 'audio/wav',
-  buffer: Buffer.from('RIFF0000WAVEfmt persistent profile payload'),
-}
+const fakeAudio = testWavFile('persistent-track.wav', 1.5, 520)
 
 test('restores global mixer session settings after reload', async ({ page }) => {
   await page.goto('/')
@@ -27,6 +24,7 @@ test('restores BPM cues and loop preference when the same local file is loaded a
   await page.goto('/')
   await page.getByTestId('file-input-A').setInputFiles(fakeAudio)
   await expect(page.getByTestId('deck-A')).toContainText('persistent-track.wav')
+  await expect(page.getByLabel('Seek deck A', { exact: true })).toBeEnabled()
 
   await page.getByLabel('BPM deck A', { exact: true }).fill('123.4')
   await page.getByRole('button', { name: 'Hot cue A deck A', exact: true }).click()
