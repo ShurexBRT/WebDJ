@@ -1,5 +1,5 @@
 import soundTouchProcessorUrl from '@soundtouchjs/audio-worklet/processor?url'
-import { clampTransportTime, reanchorTransportClock, transportPositionAt, type TransportClock } from './bufferTransport'
+import { clampTransportTime, loopedTransportPositionAt, type TransportClock, type TransportLoopRange } from './bufferTransport'
 
 type BufferTransportCallbacks = {
   onTimeUpdate?: (currentTime: number, duration: number) => void
@@ -69,6 +69,7 @@ export class BufferDeckTransport {
   private source: AudioBufferSourceNode | null = null
   private processor: SoundTouchProcessorNode | null = null
   private callbacks: BufferTransportCallbacks = {}
+  private loopRange: TransportLoopRange | null = null
   private frameId: number | null = null
   private sourceGeneration = 0
   private clock: TransportClock = {
@@ -97,6 +98,7 @@ export class BufferDeckTransport {
     this.stopTicker()
     this.buffer = buffer
     this.callbacks = callbacks
+    this.loopRange = null
     this.clock = {
       offsetSeconds: 0,
       anchorContextTime: this.context.currentTime,
@@ -108,7 +110,8 @@ export class BufferDeckTransport {
   }
 
   async play(): Promise<boolean> {
-    if (!this.buffer || this.clock.playing) return false
+    if (!this.buffer) throw new Error('No decoded audio is loaded')
+    if (this.clock.playing) return false
     if (this.clock.offsetSeconds >= this.buffer.duration) this.clock.offsetSeconds = 0
     if (this.context.state === 'suspended') await this.context.resume()
     await registerSoundTouch(this.context)
@@ -118,10 +121,7 @@ export class BufferDeckTransport {
 
   pause(): void {
     if (!this.clock.playing) return
-    this.clock = {
-      ...reanchorTransportClock(this.clock, this.context.currentTime),
-      playing: false,
-    }
+    this.reanchorClock(this.clock.playbackRate, false)
     this.stopCurrentSource()
     this.stopTicker()
     this.emitTimeUpdate()
@@ -147,11 +147,8 @@ export class BufferDeckTransport {
 
   setPlaybackRate(rate: number): void {
     const nextRate = Math.max(0.25, Math.min(4, rate))
-    if (this.clock.playing) {
-      this.clock = reanchorTransportClock(this.clock, this.context.currentTime, nextRate)
-    } else {
-      this.clock = { ...this.clock, playbackRate: nextRate }
-    }
+    if (this.clock.playing) this.reanchorClock(nextRate, true)
+    else this.clock = { ...this.clock, playbackRate: nextRate }
 
     if (this.source && this.processor) {
       this.source.playbackRate.setValueAtTime(nextRate, this.context.currentTime)
@@ -161,8 +158,39 @@ export class BufferDeckTransport {
     this.emitTimeUpdate()
   }
 
+  setLoop(range: { start: number; end: number } | null): void {
+    const duration = this.getDuration()
+    const currentTime = this.getCurrentTime()
+    if (this.clock.playing) this.reanchorClock(this.clock.playbackRate, true)
+
+    if (!range || duration <= 0) {
+      this.loopRange = null
+      if (this.source) this.source.loop = false
+      this.emitTimeUpdate()
+      return
+    }
+
+    const startSeconds = clampTransportTime(range.start, duration)
+    const endSeconds = clampTransportTime(range.end, duration)
+    if (endSeconds <= startSeconds) {
+      this.loopRange = null
+      if (this.source) this.source.loop = false
+      this.emitTimeUpdate()
+      return
+    }
+
+    this.loopRange = { startSeconds, endSeconds }
+    if (currentTime >= endSeconds) {
+      this.seek(startSeconds)
+      return
+    }
+
+    this.applyLoopToSource()
+    this.emitTimeUpdate()
+  }
+
   getCurrentTime(): number {
-    return transportPositionAt(this.clock, this.context.currentTime)
+    return loopedTransportPositionAt(this.clock, this.context.currentTime, this.loopRange)
   }
 
   getDuration(): number {
@@ -182,6 +210,7 @@ export class BufferDeckTransport {
     this.stopTicker()
     this.buffer = null
     this.callbacks = {}
+    this.loopRange = null
     this.clock = {
       offsetSeconds: 0,
       anchorContextTime: this.context.currentTime,
@@ -189,6 +218,27 @@ export class BufferDeckTransport {
       durationSeconds: 0,
       playing: false,
     }
+  }
+
+  private reanchorClock(playbackRate: number, playing: boolean): void {
+    this.clock = {
+      ...this.clock,
+      offsetSeconds: this.getCurrentTime(),
+      anchorContextTime: this.context.currentTime,
+      playbackRate,
+      playing,
+    }
+  }
+
+  private applyLoopToSource(): void {
+    if (!this.source) return
+    if (!this.loopRange) {
+      this.source.loop = false
+      return
+    }
+    this.source.loopStart = this.loopRange.startSeconds
+    this.source.loopEnd = this.loopRange.endSeconds
+    this.source.loop = true
   }
 
   private startSource(offsetSeconds: number): void {
@@ -211,7 +261,7 @@ export class BufferDeckTransport {
     processor.connect(this.destination)
 
     source.onended = () => {
-      if (generation !== this.sourceGeneration || !this.clock.playing) return
+      if (generation !== this.sourceGeneration || !this.clock.playing || this.loopRange) return
       this.clock = {
         ...this.clock,
         offsetSeconds: this.clock.durationSeconds,
@@ -228,6 +278,7 @@ export class BufferDeckTransport {
 
     this.source = source
     this.processor = processor
+    this.applyLoopToSource()
     this.clock = {
       ...this.clock,
       offsetSeconds,

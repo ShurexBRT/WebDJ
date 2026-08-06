@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { CornerDownLeft, Flag, Repeat2 } from 'lucide-react'
 import { getAudioEngine } from '../audio/AudioEngine'
 import { createLoopRange, LOOP_BEAT_OPTIONS, type LoopBeats } from '../audio/loop'
@@ -8,22 +8,22 @@ import { formatTime } from '../audio/transport'
 import { useMixerStore, type DeckId } from '../state/mixerStore'
 import './cueLoop.css'
 
+type LoopUiState = {
+  trackName: string | null
+  range: { start: number; end: number } | null
+}
+
 export function CueLoopControls({ deckId }: { deckId: DeckId }) {
   const deck = useMixerStore((state) => state.decks[deckId])
   const quantizeEnabled = useMixerStore((state) => state.quantizeEnabled)
   const setDeckTime = useMixerStore((state) => state.setDeckTime)
   const setDeckCuePoint = useMixerStore((state) => state.setDeckCuePoint)
   const setDeckLoopBeats = useMixerStore((state) => state.setDeckLoopBeats)
-  const [loopRange, setLoopRange] = useState<{ start: number; end: number } | null>(null)
-  const [loopEnabled, setLoopEnabled] = useState(false)
+  const [loopUi, setLoopUi] = useState<LoopUiState>({ trackName: deck.trackName, range: null })
   const engine = getAudioEngine()
   const bpm = effectiveBpm(deck.bpm, deck.pitchPercent)
-
-  useEffect(() => {
-    if (!loopEnabled || !loopRange || deck.currentTime < loopRange.end) return
-    engine.seek(deckId, loopRange.start)
-    setDeckTime(deckId, loopRange.start)
-  }, [deck.currentTime, deckId, engine, loopEnabled, loopRange, setDeckTime])
+  const loopRange = loopUi.trackName === deck.trackName ? loopUi.range : null
+  const loopEnabled = Boolean(loopRange)
 
   const quantizedPlayhead = () => quantizeEnabled
     ? quantizeTime(deck.currentTime, bpm, deck.beatOffsetSeconds)
@@ -34,15 +34,23 @@ export function CueLoopControls({ deckId }: { deckId: DeckId }) {
     setDeckTime(deckId, time)
   }
 
+  const applyLoopRange = (range: { start: number; end: number } | null) => {
+    setLoopUi({ trackName: deck.trackName, range })
+    engine.setDeckLoop(deckId, range)
+  }
+
+  const selectLoopSize = (beats: LoopBeats) => {
+    setDeckLoopBeats(deckId, beats)
+    if (!loopRange) return
+    applyLoopRange(createLoopRange(loopRange.start, deck.duration, beats, bpm))
+  }
+
   const toggleLoop = () => {
-    if (loopEnabled) {
-      setLoopEnabled(false)
+    if (loopRange) {
+      applyLoopRange(null)
       return
     }
-    const nextRange = createLoopRange(quantizedPlayhead(), deck.duration, deck.loopBeats, bpm)
-    if (!nextRange) return
-    setLoopRange(nextRange)
-    setLoopEnabled(true)
+    applyLoopRange(createLoopRange(quantizedPlayhead(), deck.duration, deck.loopBeats, bpm))
   }
 
   return (
@@ -52,7 +60,7 @@ export function CueLoopControls({ deckId }: { deckId: DeckId }) {
         <button type="button" aria-label={`Return to cue point deck ${deckId}`} disabled={deck.cuePoint === null} onClick={() => deck.cuePoint !== null && jumpTo(deck.cuePoint)}><CornerDownLeft size={14} /> {deck.cuePoint === null ? '--:--' : formatTime(deck.cuePoint)}</button>
         <div className="loop-size-row" aria-label={`Loop size deck ${deckId}`}>
           {LOOP_BEAT_OPTIONS.map((beats) => (
-            <button key={beats} type="button" className={deck.loopBeats === beats ? 'active' : ''} aria-pressed={deck.loopBeats === beats} aria-label={`${beats} beat loop deck ${deckId}`} onClick={() => setDeckLoopBeats(deckId, beats as LoopBeats)}>{beats}</button>
+            <button key={beats} type="button" className={deck.loopBeats === beats ? 'active' : ''} aria-pressed={deck.loopBeats === beats} aria-label={`${beats} beat loop deck ${deckId}`} onClick={() => selectLoopSize(beats as LoopBeats)}>{beats}</button>
           ))}
         </div>
         <button type="button" className={`loop-toggle${loopEnabled ? ' active' : ''}`} aria-label={`Loop deck ${deckId}`} aria-pressed={loopEnabled} disabled={!deck.trackName || bpm <= 0 || deck.duration <= 0} onClick={toggleLoop}><Repeat2 size={15} /> {loopEnabled ? 'ON' : 'LOOP'}</button>
