@@ -1,8 +1,9 @@
 import { expect, test } from '@playwright/test'
+import { testWavFile } from './fixtures/audio'
 
 const tracks = [
-  { name: 'Artist One - Blue Track.mp3', mimeType: 'audio/mpeg', buffer: Buffer.from('blue audio') },
-  { name: 'Artist Two - Orange Track.wav', mimeType: 'audio/wav', buffer: Buffer.from('orange audio') },
+  testWavFile('Artist One - Blue Track.wav', 1, 440),
+  testWavFile('Artist Two - Orange Track.wav', 1, 660),
 ]
 
 test('imports, searches and loads local library tracks into either deck', async ({ page }) => {
@@ -21,6 +22,7 @@ test('imports, searches and loads local library tracks into either deck', async 
   await page.getByRole('button', { name: 'Load Orange Track to deck B', exact: true }).click()
   await expect(page.getByTestId('deck-B')).toContainText('Artist Two - Orange Track.wav')
   await expect(page.getByTestId('deck-A')).toContainText('No track loaded')
+  await expect(page.getByLabel('Seek deck B', { exact: true })).toBeEnabled()
 })
 
 test('removes tracks from the in-memory library', async ({ page }) => {
