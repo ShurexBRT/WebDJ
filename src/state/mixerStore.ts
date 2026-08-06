@@ -6,6 +6,8 @@ import type { TrackProfile } from '../storage/trackProfiles'
 export type DeckId = 'A' | 'B'
 export type BpmAnalysisStatus = 'idle' | 'analyzing' | 'detected' | 'manual' | 'failed'
 export type LoopBeats = 1 | 2 | 4 | 8 | 16
+export type BeatJumpBeats = 1 | 4 | 8 | 16
+export type DeckLoopRange = { start: number; end: number }
 
 export type TrackHistoryItem = {
   id: string
@@ -46,6 +48,8 @@ export type DeckState = {
   cuePoint: number | null
   hotCues: Array<number | null>
   loopBeats: LoopBeats
+  loopRange: DeckLoopRange | null
+  beatJumpBeats: BeatJumpBeats
 }
 
 type MixerState = {
@@ -84,6 +88,8 @@ type MixerState = {
   setDeckCuePoint: (deckId: DeckId, time: number | null) => void
   setDeckHotCue: (deckId: DeckId, index: number, time: number | null) => void
   setDeckLoopBeats: (deckId: DeckId, beats: LoopBeats) => void
+  setDeckLoopRange: (deckId: DeckId, range: DeckLoopRange | null) => void
+  setDeckBeatJumpBeats: (deckId: DeckId, beats: BeatJumpBeats) => void
   setCrossfader: (value: number) => void
   setMasterDeck: (deckId: DeckId | null) => void
   setQuantizeEnabled: (enabled: boolean) => void
@@ -130,6 +136,8 @@ const emptyDeck = (): DeckState => ({
   cuePoint: null,
   hotCues: Array.from({ length: 6 }, () => null),
   loopBeats: 4,
+  loopRange: null,
+  beatJumpBeats: 4,
 })
 
 const initialState = () => ({
@@ -165,6 +173,7 @@ export const useMixerStore = create<MixerState>((set) => ({
         echoFeedback: state.decks[deckId].echoFeedback,
         reverbEnabled: state.decks[deckId].reverbEnabled,
         reverbMix: state.decks[deckId].reverbMix,
+        beatJumpBeats: state.decks[deckId].beatJumpBeats,
         trackName,
       },
     },
@@ -234,7 +243,7 @@ export const useMixerStore = create<MixerState>((set) => ({
   setDeckTime: (deckId, currentTime, duration) => set((state) => ({
     decks: { ...state.decks, [deckId]: { ...state.decks[deckId], currentTime, duration: duration ?? state.decks[deckId].duration } },
   })),
-  setDeckEq: (deckId, band, value) => set((state) => ({ decks: { ...state.decks, [deckId]: { ...state.decks[deckId], [band]: value } } })),
+  setDeckEq: (deckId, band, value) => set((state) => ({ decks: { ...state.decks, [deckId]: { ...state.decks[deckId], [band]: value } })),
   setDeckFilter: (deckId, filter) => set((state) => ({ decks: { ...state.decks, [deckId]: { ...state.decks[deckId], filter } } })),
   setDeckEcho: (deckId, patch) => set((state) => ({ decks: { ...state.decks, [deckId]: { ...state.decks[deckId], ...patch } } })),
   setDeckReverb: (deckId, patch) => set((state) => ({ decks: { ...state.decks, [deckId]: { ...state.decks[deckId], ...patch } } })),
@@ -253,6 +262,12 @@ export const useMixerStore = create<MixerState>((set) => ({
   }),
   setDeckLoopBeats: (deckId, loopBeats) => set((state) => ({
     decks: { ...state.decks, [deckId]: { ...state.decks[deckId], loopBeats } },
+  })),
+  setDeckLoopRange: (deckId, loopRange) => set((state) => ({
+    decks: { ...state.decks, [deckId]: { ...state.decks[deckId], loopRange } },
+  })),
+  setDeckBeatJumpBeats: (deckId, beatJumpBeats) => set((state) => ({
+    decks: { ...state.decks, [deckId]: { ...state.decks[deckId], beatJumpBeats } },
   })),
   setCrossfader: (crossfader) => set({ crossfader }),
   setMasterDeck: (masterDeck) => set({ masterDeck }),
