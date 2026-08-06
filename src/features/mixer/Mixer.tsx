@@ -1,8 +1,10 @@
-import { useCallback } from 'react'
-import { Headphones, SlidersHorizontal } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
+import { Headphones, ShieldCheck, SlidersHorizontal, TriangleAlert } from 'lucide-react'
 import { getAudioEngine } from '../../audio/AudioEngine'
+import { isClipRisk } from '../../audio/mastering'
 import { KnobControl } from '../../components/KnobControl'
 import { LevelMeter } from '../../components/LevelMeter'
+import { useGainAssistStore } from '../../state/gainAssistStore'
 import { useMixerStore, type DeckId } from '../../state/mixerStore'
 
 const accentFor = (deckId: DeckId) => deckId === 'A' ? '#29b6ff' : '#ff921f'
@@ -10,6 +12,8 @@ const dbLabel = (value: number) => `${value > 0 ? '+' : ''}${value} dB`
 
 function ChannelStrip({ deckId }: { deckId: DeckId }) {
   const deck = useMixerStore((state) => state.decks[deckId])
+  const gainAssist = useGainAssistStore((state) => state.decks[deckId])
+  const setGainAssistEnabled = useGainAssistStore((state) => state.setEnabled)
   const setTrim = useMixerStore((state) => state.setDeckTrim)
   const setVolume = useMixerStore((state) => state.setDeckVolume)
   const setDeckEq = useMixerStore((state) => state.setDeckEq)
@@ -18,10 +22,30 @@ function ChannelStrip({ deckId }: { deckId: DeckId }) {
   const accent = accentFor(deckId)
   const readLevel = useCallback(() => engine.getDeckLevel(deckId), [deckId, engine])
 
+  const toggleAutoGain = () => {
+    const enabled = !gainAssist.enabled
+    setGainAssistEnabled(deckId, enabled)
+    if (!enabled || !gainAssist.analysis) return
+    const trim = gainAssist.analysis.recommendedTrimDb
+    setTrim(deckId, trim)
+    engine.setDeckTrim(deckId, trim)
+  }
+
   return (
     <div className={`mixer-channel mixer-channel-${deckId.toLowerCase()}`}>
       <div className="channel-title"><span>CHANNEL {deckId === 'A' ? '1' : '2'}</span><strong>DECK {deckId}</strong></div>
       <KnobControl label="GAIN" ariaLabel={`Trim deck ${deckId}`} value={deck.trim} min={-12} max={12} step={1} accent={accent} valueLabel={dbLabel(deck.trim)} onDoubleClick={() => { setTrim(deckId, 0); engine.setDeckTrim(deckId, 0) }} onChange={(value) => { setTrim(deckId, value); engine.setDeckTrim(deckId, value) }} />
+      <button
+        className={`auto-gain-button${gainAssist.enabled ? ' active' : ''}`}
+        type="button"
+        aria-label={`Auto gain deck ${deckId}`}
+        aria-pressed={gainAssist.enabled}
+        disabled={!gainAssist.analysis}
+        title={gainAssist.analysis ? `Estimated RMS ${gainAssist.analysis.rmsDb} dB, peak ${gainAssist.analysis.peakDb} dB` : 'Load and analyse a track first'}
+        onClick={toggleAutoGain}
+      >
+        AUTO {gainAssist.analysis ? dbLabel(gainAssist.analysis.recommendedTrimDb) : '—'}
+      </button>
       {(['high', 'mid', 'low'] as const).map((band) => (
         <KnobControl key={band} label={band.toUpperCase()} ariaLabel={`${band} EQ deck ${deckId}`} value={deck[band]} min={-24} max={12} step={1} accent={accent} valueLabel={dbLabel(deck[band])} onDoubleClick={() => { setDeckEq(deckId, band, 0); engine.setEq(deckId, band, 0) }} onChange={(value) => { setDeckEq(deckId, band, value); engine.setEq(deckId, band, value) }} />
       ))}
@@ -34,6 +58,29 @@ function ChannelStrip({ deckId }: { deckId: DeckId }) {
           <small>{Math.round(deck.volume * 100)}%</small>
         </label>
       </div>
+    </div>
+  )
+}
+
+function MasterSafetyStatus() {
+  const engine = getAudioEngine()
+  const [reduction, setReduction] = useState(0)
+  const [clipRisk, setClipRisk] = useState(false)
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      const nextReduction = engine.getMasterLimiterReduction()
+      setReduction(nextReduction)
+      setClipRisk(isClipRisk(engine.getMasterPreLimiterLevel(), nextReduction))
+    }, 100)
+    return () => window.clearInterval(interval)
+  }, [engine])
+
+  return (
+    <div className={`master-safety-status${clipRisk ? ' warning' : ''}`} aria-label="Master limiter status" aria-live="polite">
+      {clipRisk ? <TriangleAlert size={12} /> : <ShieldCheck size={12} />}
+      <span>{clipRisk ? 'CLIP RISK' : 'LIMITER'}</span>
+      <strong>{reduction > 0.1 ? `-${reduction.toFixed(1)} dB` : 'READY'}</strong>
     </div>
   )
 }
@@ -57,6 +104,7 @@ export function Mixer() {
         <ChannelStrip deckId="A" />
         <div className="master-channel">
           <div className="channel-title"><span>MASTER</span><strong>OUT</strong></div>
+          <MasterSafetyStatus />
           <KnobControl label="MASTER" ariaLabel="Master volume" value={masterVolume} min={0} max={1} step={0.01} accent="#f4c542" valueLabel={`${Math.round(masterVolume * 100)}%`} onDoubleClick={() => { setMasterVolume(0.9); engine.setMasterVolume(0.9) }} onChange={(value) => { setMasterVolume(value); engine.setMasterVolume(value) }} />
           <div className="master-meter-pair">
             <LevelMeter label="Master level" readLevel={readMasterLevel} />
