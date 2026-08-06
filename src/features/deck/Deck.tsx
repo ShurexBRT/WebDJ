@@ -1,4 +1,4 @@
-import { useEffect, useRef, type CSSProperties } from 'react'
+import { useCallback, useEffect, type CSSProperties } from 'react'
 import { ChevronsLeft, ChevronsRight, Headphones, Pause, Play, Upload } from 'lucide-react'
 import { getAudioEngine } from '../../audio/AudioEngine'
 import { analyzeFileBpm } from '../../audio/bpmAnalysis'
@@ -97,7 +97,7 @@ export function Deck({ side }: { side: DeckId }) {
 
   const toggleMaster = () => setMasterDeck(isMaster ? null : side)
 
-  const handleFile = async (file?: File) => {
+  const handleFile = useCallback(async (file?: File) => {
     if (!file) return
     loadTrack(side, file.name)
     setDeckAnalysis(side, true)
@@ -143,19 +143,34 @@ export function Deck({ side }: { side: DeckId }) {
       setDeckAnalysis(side, false, error instanceof Error ? error.message : 'Audio analysis failed')
       setDeckBpmAnalysis(side, 'failed', 0, 0)
     }
-  }
-
-  const handleFileRef = useRef(handleFile)
-
-  useEffect(() => {
-    handleFileRef.current = handleFile
-  })
+  }, [
+    deck.echoEnabled,
+    deck.echoFeedback,
+    deck.echoMix,
+    deck.echoTimeMs,
+    deck.filter,
+    deck.pitchPercent,
+    deck.reverbEnabled,
+    deck.reverbMix,
+    deck.trim,
+    deck.volume,
+    engine,
+    loadTrack,
+    restoreDeckProfile,
+    setDeckAnalysis,
+    setDeckBpmAnalysis,
+    setDeckIdentity,
+    setDeckTime,
+    setDeckWaveform,
+    setPlaying,
+    side,
+  ])
 
   useEffect(() => {
     if (!libraryRequest) return
-    void handleFileRef.current(libraryRequest.track.file)
+    void handleFile(libraryRequest.track.file)
     consumeLibraryRequest(side, libraryRequest.requestId)
-  }, [consumeLibraryRequest, libraryRequest, side])
+  }, [consumeLibraryRequest, handleFile, libraryRequest, side])
 
   const togglePlayback = async () => {
     if (!deck.trackName) return
