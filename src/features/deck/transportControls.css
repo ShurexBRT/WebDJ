@@ -34,6 +34,74 @@
   text-shadow: 0 0 7px rgba(72, 215, 123, .42);
 }
 
+.jog-touch-surface {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: 50%;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.jog-touch-surface:active,
+.jog-wheel.jog-active .jog-touch-surface {
+  cursor: grabbing;
+}
+
+.jog-touch-surface:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--deck-accent), 0 0 16px color-mix(in srgb, var(--deck-accent) 30%, transparent);
+}
+
+.jog-wheel.jog-active {
+  border-color: color-mix(in srgb, var(--deck-accent) 74%, #313740);
+  box-shadow: inset 0 0 0 5px #090a0c, inset 0 0 31px rgba(0,0,0,.96), 0 0 19px color-mix(in srgb,var(--deck-accent) 22%,transparent), 0 8px 22px rgba(0,0,0,.45);
+}
+
+.jog-wheel.jog-active .jog-grooves {
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--deck-accent) 30%, transparent));
+}
+
+.jog-wheel.jog-bend .jog-readout span,
+.jog-wheel.jog-scrub .jog-readout span {
+  color: var(--deck-accent);
+  font-weight: 900;
+  text-shadow: 0 0 7px color-mix(in srgb, var(--deck-accent) 45%, transparent);
+}
+
+.jog-mode-label {
+  position: absolute;
+  right: 27px;
+  bottom: 27px;
+  z-index: 4;
+  padding: 2px 4px;
+  border: 1px solid #303741;
+  border-radius: 2px;
+  background: rgba(5, 7, 9, .82);
+  color: #717b86;
+  font-size: 6px;
+  font-weight: 900;
+  letter-spacing: .08em;
+}
+
+.jog-wheel.jog-active .jog-mode-label {
+  color: var(--deck-accent);
+  border-color: color-mix(in srgb, var(--deck-accent) 55%, #303741);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .nudge-controls {
   display: grid;
   grid-template-columns: 1fr 1fr;
