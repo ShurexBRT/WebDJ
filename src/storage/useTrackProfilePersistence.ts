@@ -1,9 +1,11 @@
 import { useEffect } from 'react'
+import { useKeyStore } from '../state/keyStore'
 import { useMixerStore, type DeckId } from '../state/mixerStore'
-import { saveTrackProfile, type PersistedBpmStatus } from './trackProfiles'
+import { saveTrackProfile, type PersistedBpmStatus, type PersistedKeyStatus } from './trackProfiles'
 
 export function useTrackProfilePersistence(deckId: DeckId): void {
   const deck = useMixerStore((state) => state.decks[deckId])
+  const deckKey = useKeyStore((state) => state.decks[deckId])
 
   useEffect(() => {
     if (!deck.trackId || !deck.trackName || deck.isAnalyzing) return
@@ -12,6 +14,9 @@ export function useTrackProfilePersistence(deckId: DeckId): void {
       const bpmAnalysisStatus: PersistedBpmStatus = deck.bpmAnalysisStatus === 'analyzing'
         ? 'idle'
         : deck.bpmAnalysisStatus
+      const keyAnalysisStatus: PersistedKeyStatus = deckKey.status === 'analyzing'
+        ? 'idle'
+        : deckKey.status
 
       void saveTrackProfile({
         id: deck.trackId!,
@@ -21,6 +26,10 @@ export function useTrackProfilePersistence(deckId: DeckId): void {
         bpm: deck.bpm,
         bpmConfidence: deck.bpmConfidence,
         bpmAnalysisStatus,
+        key: deckKey.key,
+        camelotKey: deckKey.camelotKey,
+        keyConfidence: deckKey.confidence,
+        keyAnalysisStatus,
         beatOffsetSeconds: deck.beatOffsetSeconds,
         barOffsetBeats: deck.barOffsetBeats,
         waveform: deck.waveform,
@@ -47,5 +56,9 @@ export function useTrackProfilePersistence(deckId: DeckId): void {
     deck.trackId,
     deck.trackName,
     deck.waveform,
+    deckKey.camelotKey,
+    deckKey.confidence,
+    deckKey.key,
+    deckKey.status,
   ])
 }
