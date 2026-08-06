@@ -1,0 +1,23 @@
+.pwa-status {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid #27303a;
+  border-radius: 5px;
+  padding: 0 10px;
+  background: linear-gradient(180deg, #13171c, #090b0e);
+  color: #89939f;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .08em;
+  white-space: nowrap;
+}
+
+button.pwa-status { cursor: pointer; }
+button.pwa-status:hover { border-color: #3a5062; color: #d5e9f6; }
+.pwa-status.install { border-color: #24526d; color: #7ed4ff; }
+.pwa-status.update { border-color: #735623; color: #ffd27b; }
+.pwa-status.offline { border-color: #6f342f; color: #ff8f84; }
+.pwa-status.passive { pointer-events: none; }
