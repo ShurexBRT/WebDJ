@@ -1,6 +1,5 @@
 import { getAudioEngine } from '../audio/AudioEngine'
 import { quantizeTime } from '../audio/phaseSync'
-import { effectiveBpm } from '../audio/tempo'
 import { formatTime } from '../audio/transport'
 import { useMixerStore, type DeckId } from '../state/mixerStore'
 
@@ -12,11 +11,13 @@ export function HotCueControls({ deckId }: { deckId: DeckId }) {
   const setDeckTime = useMixerStore((state) => state.setDeckTime)
   const setDeckHotCue = useMixerStore((state) => state.setDeckHotCue)
   const engine = getAudioEngine()
-  const bpm = effectiveBpm(deck.bpm, deck.pitchPercent)
 
-  const currentCueTime = () => quantizeEnabled
-    ? quantizeTime(deck.currentTime, bpm, deck.beatOffsetSeconds)
-    : deck.currentTime
+  const currentCueTime = () => {
+    const playhead = engine.getDeckCurrentTime(deckId) || deck.currentTime
+    return quantizeEnabled
+      ? quantizeTime(playhead, deck.bpm, deck.beatOffsetSeconds)
+      : playhead
+  }
 
   const activateCue = (index: number) => {
     const cueTime = deck.hotCues[index]
