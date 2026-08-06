@@ -1,6 +1,8 @@
 import { Library, Magnet, Music2, Settings, Waves } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
+import { AutoDjController } from './ai/AutoDjController'
 import { getAudioEngine } from './audio/AudioEngine'
+import { AutoDjPanel } from './components/AutoDjPanel'
 import { HorizontalMeter } from './components/HorizontalMeter'
 import { KnobControl } from './components/KnobControl'
 import { PwaControls } from './components/PwaControls'
@@ -38,6 +40,7 @@ function App() {
 
   return (
     <main className="app-shell">
+      <AutoDjController />
       <header className="studio-header">
         <div className="studio-brand">
           <Music2 size={24} />
@@ -71,6 +74,8 @@ function App() {
         </label>
         <button className="header-settings" type="button" aria-label="Open audio settings" onClick={() => scrollTo('audio-routing')}><Settings size={16} /></button>
       </header>
+
+      <AutoDjPanel />
 
       <div className="workspace" id="mixer-workspace">
         <Deck side="A" />
