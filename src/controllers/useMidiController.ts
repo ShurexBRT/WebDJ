@@ -2,23 +2,8 @@ import { useCallback, useEffect, useRef } from 'react'
 import { useControllerStore } from '../state/controllerStore'
 import { CONTROLLER_COMMANDS, executeControllerCommand, type ControllerCommand } from './controllerCommands'
 
-type MidiMessageEventLike = {
-  data: Uint8Array
-}
-
-type MidiInputLike = {
-  id: string
-  name?: string | null
-  onmidimessage: ((event: MidiMessageEventLike) => void) | null
-}
-
-type MidiAccessLike = {
-  inputs: Map<string, MidiInputLike>
-  onstatechange: (() => void) | null
-}
-
 type NavigatorWithMidi = Navigator & {
-  requestMIDIAccess?: (options?: { sysex?: boolean; software?: boolean }) => Promise<MidiAccessLike>
+  requestMIDIAccess?: (options?: MIDIOptions) => Promise<MIDIAccess>
 }
 
 const STORAGE_KEY = 'webdj-midi-mappings-v1'
@@ -46,7 +31,7 @@ function readStoredMappings(): Partial<Record<ControllerCommand, string>> {
 }
 
 export function useMidiController() {
-  const accessRef = useRef<MidiAccessLike | null>(null)
+  const accessRef = useRef<MIDIAccess | null>(null)
   const mappings = useControllerStore((state) => state.mappings)
   const learningCommand = useControllerStore((state) => state.learningCommand)
   const setMidiStatus = useControllerStore((state) => state.setMidiStatus)
@@ -62,7 +47,7 @@ export function useMidiController() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(mappings))
   }, [mappings])
 
-  const handleMessage = useCallback((event: MidiMessageEventLike) => {
+  const handleMessage = useCallback((event: MIDIMessageEvent) => {
     const signature = midiMessageSignature(event.data)
     if (!signature) return
 
@@ -78,7 +63,7 @@ export function useMidiController() {
     void executeControllerCommand(command, value)
   }, [learningCommand, mapControl, mappings])
 
-  const attachInputs = useCallback((access: MidiAccessLike) => {
+  const attachInputs = useCallback((access: MIDIAccess) => {
     const inputs = Array.from(access.inputs.values())
     setInputNames(inputs.map((input, index) => input.name?.trim() || `MIDI Input ${index + 1}`))
     inputs.forEach((input) => {
