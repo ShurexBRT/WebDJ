@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { createTestWav } from './fixtures/audio'
 
 test('searches Jamendo and loads a result through the shared deck pipeline', async ({ page }) => {
   await page.route('https://api.jamendo.com/v3.0/tracks/**', async (route) => {
@@ -28,8 +29,8 @@ test('searches Jamendo and loads a result through the shared deck pipeline', asy
   await page.route('https://api.jamendo.com/v3.0/tracks/file/**', async (route) => {
     await route.fulfill({
       status: 200,
-      contentType: 'audio/mpeg',
-      body: Buffer.from('mock jamendo audio'),
+      contentType: 'audio/wav',
+      body: createTestWav(1, 550),
     })
   })
 
@@ -44,7 +45,8 @@ test('searches Jamendo and loads a result through the shared deck pipeline', asy
   await expect(results).toContainText('Open House Tool')
   await expect(results).toContainText('Jam Artist')
   await page.getByRole('button', { name: 'A', exact: true }).click()
-  await expect(page.getByTestId('deck-A')).toContainText('Jam Artist - Open House Tool.mp3')
+  await expect(page.getByTestId('deck-A')).toContainText('Jam Artist - Open House Tool.wav')
+  await expect(page.getByLabel('Seek deck A', { exact: true })).toBeEnabled()
 })
 
 test('shows credential requirements without making source requests', async ({ page }) => {
