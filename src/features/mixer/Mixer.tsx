@@ -6,6 +6,7 @@ import { KnobControl } from '../../components/KnobControl'
 import { LevelMeter } from '../../components/LevelMeter'
 import { useGainAssistStore } from '../../state/gainAssistStore'
 import { useMixerStore, type DeckId } from '../../state/mixerStore'
+import './masterSafety.css'
 
 const accentFor = (deckId: DeckId) => deckId === 'A' ? '#29b6ff' : '#ff921f'
 const dbLabel = (value: number) => `${value > 0 ? '+' : ''}${value} dB`
