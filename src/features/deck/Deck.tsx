@@ -1,7 +1,7 @@
-import { useEffect, useRef, type CSSProperties } from 'react'
+import { useCallback, useEffect, useRef, type CSSProperties } from 'react'
 import { ChevronsLeft, ChevronsRight, Headphones, Pause, Play, Upload } from 'lucide-react'
 import { getAudioEngine } from '../../audio/AudioEngine'
-import { nextBeatContextTime, phaseAlignedTime, phaseLabel, quantizeTime, signedPhaseErrorSeconds } from '../../audio/phaseSync'
+import { nextBeatContextTime, phaseAlignedTime, quantizeTime, signedPhaseErrorSeconds, type NudgeDirection } from '../../audio/phaseSync'
 import { effectiveBpm, pitchToMatchBpm, playbackRateFromPitch } from '../../audio/tempo'
 import { analyzeTrackFile, type TrackAnalysisResult } from '../../audio/trackAnalysis'
 import { formatTime, progressFromTime, timeFromProgress } from '../../audio/transport'
@@ -18,6 +18,7 @@ import { useGainAssistStore } from '../../state/gainAssistStore'
 import { useKeyStore } from '../../state/keyStore'
 import { useLibraryStore } from '../../state/libraryStore'
 import { useMixerStore, type DeckId } from '../../state/mixerStore'
+import { JogWheel } from './JogWheel'
 import './transportControls.css'
 
 export function Deck({ side }: { side: DeckId }) {
@@ -225,7 +226,7 @@ export function Deck({ side }: { side: DeckId }) {
     consumeLibraryRequest(side, libraryRequest.requestId)
   }, [consumeLibraryRequest, libraryRequest, side])
 
-  const togglePlayback = async () => {
+  const togglePlayback = useCallback(async () => {
     if (!deck.trackName) return
     if (deck.isPlaying) {
       engine.pause(side)
@@ -234,7 +235,24 @@ export function Deck({ side }: { side: DeckId }) {
     }
     const started = await engine.play(side)
     if (started) setPlaying(side, true)
-  }
+  }, [deck.isPlaying, deck.trackName, engine, setPlaying, side])
+
+  const scrubWithJog = useCallback((time: number) => {
+    engine.seek(side, time)
+    setDeckTime(side, time)
+  }, [engine, setDeckTime, side])
+
+  const applyJogRate = useCallback((multiplier: number) => {
+    engine.setDeckJogMultiplier(side, multiplier)
+  }, [engine, side])
+
+  const releaseJogRate = useCallback(() => {
+    engine.releaseDeckJog(side)
+  }, [engine, side])
+
+  const nudgeWithJog = useCallback((direction: NudgeDirection) => {
+    engine.nudgeDeck(side, direction)
+  }, [engine, side])
 
   const canSync = !isMaster && deck.bpm > 0 && syncReference.bpm > 0
 
@@ -266,7 +284,7 @@ export function Deck({ side }: { side: DeckId }) {
 
       <div className="deck-transport-strip">
         <button className={`cue-button${deck.cueEnabled ? ' active' : ''}`} onClick={async () => { await engine.initialize(); const enabled = !deck.cueEnabled; setDeckCue(side, enabled); engine.setDeckCue(side, enabled) }} aria-pressed={deck.cueEnabled} aria-label={`Cue deck ${side}`}><Headphones size={16} /> CUE</button>
-        <button className="mini-play-button" onClick={togglePlayback} disabled={!deck.trackName} aria-label={`${deck.isPlaying ? 'Pause' : 'Play'} deck ${side}`}>{deck.isPlaying ? <Pause size={16} /> : <Play size={16} />}<span>{deck.isPlaying ? 'PAUSE' : 'PLAY'}</span></button>
+        <button className="mini-play-button" onClick={() => { void togglePlayback() }} disabled={!deck.trackName} aria-label={`${deck.isPlaying ? 'Pause' : 'Play'} deck ${side}`}>{deck.isPlaying ? <Pause size={16} /> : <Play size={16} />}<span>{deck.isPlaying ? 'PAUSE' : 'PLAY'}</span></button>
         <CueLoopControls deckId={side} />
       </div>
 
@@ -274,14 +292,22 @@ export function Deck({ side }: { side: DeckId }) {
 
       <div className="deck-performance-grid">
         <div className="platter-column">
-          <div className="jog-wheel" aria-label={`Jog display deck ${side}`}>
-            <div className="jog-progress-ring" />
-            <div className="jog-grooves" />
-            <button className="transport-button" onClick={togglePlayback} disabled={!deck.trackName} aria-label={`${deck.isPlaying ? 'Pause' : 'Play'} deck ${side} platter`}>{deck.isPlaying ? <Pause /> : <Play />}</button>
-            <div className="jog-readout"><strong>{gridBpm > 0 ? gridBpm.toFixed(2) : '--.--'}</strong><span>{deck.pitchPercent > 0 ? '+' : ''}{deck.pitchPercent.toFixed(1)}%</span></div>
-            <span className="jog-needle" />
-            <span className={`phase-readout${Math.abs(phaseError) <= 0.005 && gridBpm > 0 && otherGridBpm > 0 ? ' locked' : ''}`}>{gridBpm > 0 && otherGridBpm > 0 ? phaseLabel(phaseError) : 'PHASE —'}</span>
-          </div>
+          <JogWheel
+            deckId={side}
+            hasTrack={Boolean(deck.trackName && deck.duration > 0)}
+            currentTime={deck.currentTime}
+            duration={deck.duration}
+            isPlaying={deck.isPlaying}
+            gridBpm={gridBpm}
+            pitchPercent={deck.pitchPercent}
+            phaseError={phaseError}
+            showPhase={gridBpm > 0 && otherGridBpm > 0}
+            onTogglePlayback={togglePlayback}
+            onScrub={scrubWithJog}
+            onJogRate={applyJogRate}
+            onJogRelease={releaseJogRate}
+            onNudge={nudgeWithJog}
+          />
           <div className="nudge-controls" aria-label={`Beat nudge deck ${side}`}>
             <button type="button" disabled={!deck.trackName} aria-label={`Nudge deck ${side} slower`} onPointerDown={() => engine.nudgeDeck(side, -1)}><ChevronsLeft size={15} /> SLOW</button>
             <button type="button" disabled={!deck.trackName} aria-label={`Nudge deck ${side} faster`} onPointerDown={() => engine.nudgeDeck(side, 1)}>FAST <ChevronsRight size={15} /></button>

@@ -203,6 +203,12 @@ export class AudioEngine {
     return filter
   }
 
+  private clearRateTimer(deck: DeckChannel): void {
+    if (deck.nudgeTimer === null) return
+    window.clearTimeout(deck.nudgeTimer)
+    deck.nudgeTimer = null
+  }
+
   async initialize(): Promise<void> {
     if (this.context.state === 'suspended') await this.context.resume()
     await Promise.allSettled([this.masterOutput.play(), this.cueOutput.play()])
@@ -250,26 +256,32 @@ export class AudioEngine {
 
   async loadFile(deckId: DeckId, file: File, callbacks: DeckCallbacks = {}): Promise<void> {
     const deck = this.decks[deckId]
-    if (deck.nudgeTimer !== null) {
-      window.clearTimeout(deck.nudgeTimer)
-      deck.nudgeTimer = null
-    }
+    this.clearRateTimer(deck)
     deck.transport.setPlaybackRate(deck.basePlaybackRate)
     await deck.transport.loadFile(file, callbacks)
   }
 
   async play(deckId: DeckId): Promise<boolean> {
     await this.initialize()
-    return this.decks[deckId].transport.play()
+    const deck = this.decks[deckId]
+    this.clearRateTimer(deck)
+    deck.transport.setPlaybackRate(deck.basePlaybackRate)
+    return deck.transport.play()
   }
 
   async playAt(deckId: DeckId, contextTime: number): Promise<boolean> {
     await this.initialize()
-    return this.decks[deckId].transport.playAt(contextTime)
+    const deck = this.decks[deckId]
+    this.clearRateTimer(deck)
+    deck.transport.setPlaybackRate(deck.basePlaybackRate)
+    return deck.transport.playAt(contextTime)
   }
 
   pause(deckId: DeckId): void {
-    this.decks[deckId].transport.pause()
+    const deck = this.decks[deckId]
+    this.clearRateTimer(deck)
+    deck.transport.setPlaybackRate(deck.basePlaybackRate)
+    deck.transport.pause()
   }
 
   seek(deckId: DeckId, seconds: number): void {
@@ -282,22 +294,34 @@ export class AudioEngine {
 
   setDeckPitch(deckId: DeckId, pitchPercent: number): void {
     const deck = this.decks[deckId]
-    if (deck.nudgeTimer !== null) {
-      window.clearTimeout(deck.nudgeTimer)
-      deck.nudgeTimer = null
-    }
+    this.clearRateTimer(deck)
     deck.basePlaybackRate = playbackRateFromPitch(pitchPercent)
     deck.transport.setPlaybackRate(deck.basePlaybackRate)
   }
 
   nudgeDeck(deckId: DeckId, direction: NudgeDirection, amountPercent = 4, durationMs = 180): void {
     const deck = this.decks[deckId]
-    if (deck.nudgeTimer !== null) window.clearTimeout(deck.nudgeTimer)
+    this.clearRateTimer(deck)
     deck.transport.setPlaybackRate(nudgePlaybackRate(deck.basePlaybackRate, direction, amountPercent))
     deck.nudgeTimer = window.setTimeout(() => {
       deck.transport.setPlaybackRate(deck.basePlaybackRate)
       deck.nudgeTimer = null
     }, Math.max(40, durationMs))
+  }
+
+  setDeckJogMultiplier(deckId: DeckId, multiplier: number): number {
+    const deck = this.decks[deckId]
+    this.clearRateTimer(deck)
+    const safeMultiplier = Number.isFinite(multiplier) ? Math.min(1.5, Math.max(0.5, multiplier)) : 1
+    const playbackRate = deck.basePlaybackRate * safeMultiplier
+    deck.transport.setPlaybackRate(playbackRate)
+    return playbackRate
+  }
+
+  releaseDeckJog(deckId: DeckId): void {
+    const deck = this.decks[deckId]
+    this.clearRateTimer(deck)
+    deck.transport.setPlaybackRate(deck.basePlaybackRate)
   }
 
   getDeckCurrentTime(deckId: DeckId): number {
@@ -382,7 +406,7 @@ export class AudioEngine {
 
   async close(): Promise<void> {
     for (const deck of Object.values(this.decks)) {
-      if (deck.nudgeTimer !== null) window.clearTimeout(deck.nudgeTimer)
+      this.clearRateTimer(deck)
       deck.transport.dispose()
     }
     this.masterOutput.pause()
