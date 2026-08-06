@@ -1,4 +1,5 @@
-const CACHE_VERSION = 'webdj-shell-v1'
+const CACHE_PREFIX = 'webdj-shell-'
+const CACHE_VERSION = `${CACHE_PREFIX}v2`
 const scopeUrl = new URL(self.registration.scope)
 const basePath = scopeUrl.pathname.endsWith('/') ? scopeUrl.pathname : `${scopeUrl.pathname}/`
 const shellAssets = [
@@ -10,24 +11,24 @@ const shellAssets = [
 ]
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_VERSION)
-      .then((cache) => cache.addAll(shellAssets))
-      .then(() => self.skipWaiting()),
-  )
+  event.waitUntil(caches.open(CACHE_VERSION).then((cache) => cache.addAll(shellAssets)))
 })
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((key) => key !== CACHE_VERSION).map((key) => caches.delete(key))))
+      .then((keys) => Promise.all(
+        keys
+          .filter((key) => key.startsWith(CACHE_PREFIX) && key !== CACHE_VERSION)
+          .map((key) => caches.delete(key)),
+      ))
       .then(() => self.clients.claim()),
   )
 })
 
 const isCacheableShellRequest = (request, url) => {
-  if (request.method !== 'GET' || url.origin !== self.location.origin) return false
-  if (!url.pathname.startsWith(basePath)) return false
+  if (request.method !== 'GET' || request.headers.has('range')) return false
+  if (url.origin !== self.location.origin || !url.pathname.startsWith(basePath)) return false
   if (request.destination === 'audio' || request.destination === 'video') return false
   return ['document', 'script', 'style', 'font', 'image', 'manifest', 'worker'].includes(request.destination)
 }
@@ -41,8 +42,10 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          const copy = response.clone()
-          void caches.open(CACHE_VERSION).then((cache) => cache.put(`${basePath}index.html`, copy))
+          if (response.ok) {
+            const copy = response.clone()
+            void caches.open(CACHE_VERSION).then((cache) => cache.put(`${basePath}index.html`, copy))
+          }
           return response
         })
         .catch(async () => (
@@ -56,13 +59,15 @@ self.addEventListener('fetch', (event) => {
 
   event.respondWith(
     caches.match(request).then((cached) => {
-      const network = fetch(request).then((response) => {
-        if (response.ok && response.type !== 'opaque') {
-          const copy = response.clone()
-          void caches.open(CACHE_VERSION).then((cache) => cache.put(request, copy))
-        }
-        return response
-      })
+      const network = fetch(request)
+        .then((response) => {
+          if (response.ok && response.type !== 'opaque') {
+            const copy = response.clone()
+            void caches.open(CACHE_VERSION).then((cache) => cache.put(request, copy))
+          }
+          return response
+        })
+        .catch(() => cached ?? Response.error())
       return cached ?? network
     }),
   )
