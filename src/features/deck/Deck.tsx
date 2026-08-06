@@ -1,15 +1,15 @@
 import { useEffect, useRef, type CSSProperties } from 'react'
 import { ChevronsLeft, ChevronsRight, Headphones, Pause, Play, Upload } from 'lucide-react'
 import { getAudioEngine } from '../../audio/AudioEngine'
-import { analyzeFileBpm } from '../../audio/bpmAnalysis'
 import { phaseAlignedTime, phaseLabel, quantizeTime, signedPhaseErrorSeconds } from '../../audio/phaseSync'
 import { effectiveBpm, pitchToMatchBpm } from '../../audio/tempo'
+import { analyzeTrackFile } from '../../audio/trackAnalysis'
 import { formatTime, progressFromTime, timeFromProgress } from '../../audio/transport'
-import { decodeWaveform } from '../../audio/waveform'
 import { BeatGridControls } from '../../components/BeatGridControls'
 import { CueLoopControls } from '../../components/CueLoopControls'
 import { EffectsPanel } from '../../components/EffectsPanel'
 import { HotCueControls } from '../../components/HotCueControls'
+import { KeyControls } from '../../components/KeyControls'
 import { TempoControls } from '../../components/TempoControls'
 import { Waveform } from '../../components/Waveform'
 import { fingerprintFile, getTrackProfile } from '../../storage/trackProfiles'
@@ -35,6 +35,7 @@ export function Deck({ side }: { side: DeckId }) {
   const setDeckWaveform = useMixerStore((state) => state.setDeckWaveform)
   const setDeckAnalysis = useMixerStore((state) => state.setDeckAnalysis)
   const setDeckBpmAnalysis = useMixerStore((state) => state.setDeckBpmAnalysis)
+  const setDeckKeyAnalysis = useMixerStore((state) => state.setDeckKeyAnalysis)
   const setDeckCue = useMixerStore((state) => state.setDeckCue)
   const setDeckPitch = useMixerStore((state) => state.setDeckPitch)
   const setMasterDeck = useMixerStore((state) => state.setMasterDeck)
@@ -97,11 +98,27 @@ export function Deck({ side }: { side: DeckId }) {
 
   const toggleMaster = () => setMasterDeck(isMaster ? null : side)
 
+  const applyAnalysis = (analysis: Awaited<ReturnType<typeof analyzeTrackFile>>, includeExistingFeatures = true) => {
+    if (includeExistingFeatures) {
+      setDeckWaveform(side, analysis.waveform)
+      if (analysis.bpm) setDeckBpmAnalysis(side, 'detected', analysis.bpm.bpm, analysis.bpm.confidence)
+      else setDeckBpmAnalysis(side, 'failed', 0, 0)
+    }
+
+    if (analysis.key) {
+      setDeckKeyAnalysis(side, 'detected', analysis.key.key, analysis.key.camelot, analysis.key.confidence)
+    } else {
+      setDeckKeyAnalysis(side, 'failed', '', '', 0)
+    }
+    setDeckAnalysis(side, false)
+  }
+
   const handleFile = async (file?: File) => {
     if (!file) return
     loadTrack(side, file.name)
     setDeckAnalysis(side, true)
     setDeckBpmAnalysis(side, 'analyzing', 0, 0)
+    setDeckKeyAnalysis(side, 'analyzing', '', '', 0)
     engine.setDeckPitch(side, deck.pitchPercent)
     engine.setDeckTrim(side, deck.trim)
     engine.setDeckVolume(side, deck.volume)
@@ -128,20 +145,21 @@ export function Deck({ side }: { side: DeckId }) {
       const cachedProfile = await profilePromise
       if (cachedProfile) {
         restoreDeckProfile(side, cachedProfile)
+        if (cachedProfile.keyAnalysisStatus !== 'idle') return
+
+        setDeckAnalysis(side, true)
+        setDeckKeyAnalysis(side, 'analyzing', '', '', 0)
+        const migratedAnalysis = await analyzeTrackFile(file, engine.context)
+        applyAnalysis(migratedAnalysis, false)
         return
       }
 
-      const [waveform, bpmResult] = await Promise.all([
-        decodeWaveform(file, engine.context),
-        analyzeFileBpm(file, engine.context).catch(() => null),
-      ])
-      setDeckWaveform(side, waveform)
-      if (bpmResult) setDeckBpmAnalysis(side, 'detected', bpmResult.bpm, bpmResult.confidence)
-      else setDeckBpmAnalysis(side, 'failed', 0, 0)
-      setDeckAnalysis(side, false)
+      const analysis = await analyzeTrackFile(file, engine.context)
+      applyAnalysis(analysis)
     } catch (error) {
       setDeckAnalysis(side, false, error instanceof Error ? error.message : 'Audio analysis failed')
       setDeckBpmAnalysis(side, 'failed', 0, 0)
+      setDeckKeyAnalysis(side, 'failed', '', '', 0)
     }
   }
 
@@ -185,7 +203,7 @@ export function Deck({ side }: { side: DeckId }) {
         <div className="track-heading">
           <strong>{deck.trackName ?? 'No track loaded'}</strong>
           <span>{deck.trackId ? 'Cached local profile' : deck.trackName ? 'Local audio file' : 'Load a track to begin'}</span>
-          <small>{gridBpm > 0 ? `${gridBpm.toFixed(1)} BPM` : '---.- BPM'} <b>—</b> KEY — <b>—</b> {formatTime(deck.duration)}</small>
+          <small>{gridBpm > 0 ? `${gridBpm.toFixed(1)} BPM` : '---.- BPM'} <b>—</b> {deck.camelotKey || 'KEY —'} <b>—</b> {formatTime(deck.duration)}</small>
         </div>
       </div>
 
@@ -223,6 +241,7 @@ export function Deck({ side }: { side: DeckId }) {
 
         <div className="deck-utility-stack">
           <TempoControls deckId={side} />
+          <KeyControls deckId={side} />
           <BeatGridControls deckId={side} />
         </div>
 
