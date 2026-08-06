@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import type { KeyboardEvent, MouseEvent, PointerEvent } from 'react'
 import { ChevronLeft, ChevronRight, CornerDownLeft, Flag, Repeat2, Waves } from 'lucide-react'
 import { getAudioEngine } from '../audio/AudioEngine'
 import {
@@ -24,6 +24,7 @@ import './cueLoop.css'
 
 const LOOP_SLIP_OWNER = 'loop'
 const BEAT_JUMP_SLIP_OWNER = 'beat-jump'
+const SLIP_HANDLED_ATTRIBUTE = 'slipHandled'
 
 export function CueLoopControls({ deckId }: { deckId: DeckId }) {
   const deck = useMixerStore((state) => state.decks[deckId])
@@ -37,7 +38,6 @@ export function CueLoopControls({ deckId }: { deckId: DeckId }) {
   const slipActive = useSlipStore((state) => state.active[deckId])
   const setSlipEnabled = useSlipStore((state) => state.setEnabled)
   const setSlipActive = useSlipStore((state) => state.setActive)
-  const beatJumpHandledRef = useRef(false)
   const engine = getAudioEngine()
   const loopRange = deck.loopRange
   const loopEnabled = Boolean(loopRange)
@@ -127,38 +127,40 @@ export function CueLoopControls({ deckId }: { deckId: DeckId }) {
 
   const beginBeatJump = (direction: BeatJumpDirection) => {
     if (!slipEnabled || !deck.isPlaying) return false
-    beatJumpHandledRef.current = true
     beginSlip(BEAT_JUMP_SLIP_OWNER)
     jumpBeats(direction)
     return true
   }
 
-  const releaseBeatJump = () => {
-    if (!beatJumpHandledRef.current) return
-    endSlip(BEAT_JUMP_SLIP_OWNER)
-  }
+  const releaseBeatJump = () => endSlip(BEAT_JUMP_SLIP_OWNER)
 
   const beatJumpButtonHandlers = (direction: BeatJumpDirection) => ({
-    onPointerDown: (event: React.PointerEvent<HTMLButtonElement>) => {
+    onPointerDown: (event: PointerEvent<HTMLButtonElement>) => {
       if (event.button !== 0) return
-      beginBeatJump(direction)
+      if (beginBeatJump(direction)) event.currentTarget.dataset[SLIP_HANDLED_ATTRIBUTE] = 'true'
     },
-    onPointerUp: releaseBeatJump,
-    onPointerCancel: () => {
-      releaseBeatJump()
-      beatJumpHandledRef.current = false
+    onPointerUp: (event: PointerEvent<HTMLButtonElement>) => {
+      if (event.currentTarget.dataset[SLIP_HANDLED_ATTRIBUTE] === 'true') releaseBeatJump()
     },
-    onKeyDown: (event: React.KeyboardEvent<HTMLButtonElement>) => {
+    onPointerCancel: (event: PointerEvent<HTMLButtonElement>) => {
+      if (event.currentTarget.dataset[SLIP_HANDLED_ATTRIBUTE] === 'true') releaseBeatJump()
+      delete event.currentTarget.dataset[SLIP_HANDLED_ATTRIBUTE]
+    },
+    onKeyDown: (event: KeyboardEvent<HTMLButtonElement>) => {
       if (event.repeat || (event.key !== 'Enter' && event.key !== ' ')) return
-      if (beginBeatJump(direction)) event.preventDefault()
+      if (beginBeatJump(direction)) {
+        event.currentTarget.dataset[SLIP_HANDLED_ATTRIBUTE] = 'true'
+        event.preventDefault()
+      }
     },
-    onKeyUp: (event: React.KeyboardEvent<HTMLButtonElement>) => {
-      if (event.key !== 'Enter' && event.key !== ' ') return
-      releaseBeatJump()
+    onKeyUp: (event: KeyboardEvent<HTMLButtonElement>) => {
+      if ((event.key === 'Enter' || event.key === ' ') && event.currentTarget.dataset[SLIP_HANDLED_ATTRIBUTE] === 'true') {
+        releaseBeatJump()
+      }
     },
-    onClick: () => {
-      if (beatJumpHandledRef.current) {
-        beatJumpHandledRef.current = false
+    onClick: (event: MouseEvent<HTMLButtonElement>) => {
+      if (event.currentTarget.dataset[SLIP_HANDLED_ATTRIBUTE] === 'true') {
+        delete event.currentTarget.dataset[SLIP_HANDLED_ATTRIBUTE]
         return
       }
       jumpBeats(direction)
