@@ -1,4 +1,5 @@
 export type PersistedBpmStatus = 'detected' | 'manual' | 'failed' | 'idle'
+export type PersistedKeyStatus = 'detected' | 'manual' | 'failed' | 'idle'
 
 export type TrackProfile = {
   id: string
@@ -8,6 +9,10 @@ export type TrackProfile = {
   bpm: number
   bpmConfidence: number
   bpmAnalysisStatus: PersistedBpmStatus
+  key?: string
+  camelotKey?: string
+  keyConfidence?: number
+  keyAnalysisStatus?: PersistedKeyStatus
   beatOffsetSeconds: number
   barOffsetBeats: number
   waveform: number[]
@@ -17,20 +22,35 @@ export type TrackProfile = {
   updatedAt: number
 }
 
+type NormalizedTrackProfile = TrackProfile & {
+  key: string
+  camelotKey: string
+  keyConfidence: number
+  keyAnalysisStatus: PersistedKeyStatus
+}
+
 const DATABASE_NAME = 'webdj-studio'
 const DATABASE_VERSION = 1
 const PROFILE_STORE = 'trackProfiles'
-const memoryProfiles = new Map<string, TrackProfile>()
+const memoryProfiles = new Map<string, NormalizedTrackProfile>()
+
+const normalizeProfile = (profile: TrackProfile): NormalizedTrackProfile => ({
+  ...profile,
+  key: profile.key ?? '',
+  camelotKey: profile.camelotKey ?? '',
+  keyConfidence: profile.keyConfidence ?? 0,
+  keyAnalysisStatus: profile.keyAnalysisStatus ?? 'idle',
+  waveform: profile.waveform.slice(0, 1_200),
+  hotCues: profile.hotCues.slice(0, 6),
+})
 
 function openDatabase(): Promise<IDBDatabase | null> {
   if (typeof indexedDB === 'undefined') return Promise.resolve(null)
-
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DATABASE_NAME, DATABASE_VERSION)
     request.onupgradeneeded = () => {
-      const database = request.result
-      if (!database.objectStoreNames.contains(PROFILE_STORE)) {
-        database.createObjectStore(PROFILE_STORE, { keyPath: 'id' })
+      if (!request.result.objectStoreNames.contains(PROFILE_STORE)) {
+        request.result.createObjectStore(PROFILE_STORE, { keyPath: 'id' })
       }
     }
     request.onsuccess = () => resolve(request.result)
@@ -40,23 +60,18 @@ function openDatabase(): Promise<IDBDatabase | null> {
 
 export async function fingerprintFile(file: File): Promise<string> {
   const chunkSize = 64 * 1024
-  const head = await file.slice(0, chunkSize).arrayBuffer()
-  const middleStart = Math.max(0, Math.floor(file.size / 2 - chunkSize / 2))
-  const middle = file.size > chunkSize * 2
-    ? await file.slice(middleStart, middleStart + chunkSize).arrayBuffer()
-    : new ArrayBuffer(0)
-  const tailStart = Math.max(0, file.size - chunkSize)
-  const tail = tailStart > chunkSize ? await file.slice(tailStart).arrayBuffer() : new ArrayBuffer(0)
+  const starts = [0, Math.max(0, Math.floor(file.size / 2 - chunkSize / 2)), Math.max(0, file.size - chunkSize)]
+  const chunks = await Promise.all(starts.map((start) => file.slice(start, start + chunkSize).arrayBuffer()))
   const metadata = new TextEncoder().encode(`${file.name}|${file.size}|${file.type}`)
-  const bytes = new Uint8Array(metadata.byteLength + head.byteLength + middle.byteLength + tail.byteLength)
+  const totalSize = metadata.byteLength + chunks.reduce((sum, chunk) => sum + chunk.byteLength, 0)
+  const bytes = new Uint8Array(totalSize)
   let offset = 0
   bytes.set(metadata, offset)
   offset += metadata.byteLength
-  bytes.set(new Uint8Array(head), offset)
-  offset += head.byteLength
-  bytes.set(new Uint8Array(middle), offset)
-  offset += middle.byteLength
-  bytes.set(new Uint8Array(tail), offset)
+  chunks.forEach((chunk) => {
+    bytes.set(new Uint8Array(chunk), offset)
+    offset += chunk.byteLength
+  })
 
   if (!globalThis.crypto?.subtle) {
     let hash = 2166136261
@@ -71,29 +86,22 @@ export async function fingerprintFile(file: File): Promise<string> {
 export async function getTrackProfile(id: string): Promise<TrackProfile | null> {
   const database = await openDatabase()
   if (!database) return memoryProfiles.get(id) ?? null
-
   return new Promise((resolve, reject) => {
     const transaction = database.transaction(PROFILE_STORE, 'readonly')
     const request = transaction.objectStore(PROFILE_STORE).get(id)
-    request.onsuccess = () => resolve((request.result as TrackProfile | undefined) ?? null)
+    request.onsuccess = () => resolve(request.result ? normalizeProfile(request.result as TrackProfile) : null)
     request.onerror = () => reject(request.error ?? new Error('Unable to read WebDJ track profile'))
     transaction.oncomplete = () => database.close()
   })
 }
 
 export async function saveTrackProfile(profile: TrackProfile): Promise<void> {
-  const normalized: TrackProfile = {
-    ...profile,
-    waveform: profile.waveform.slice(0, 1_200),
-    hotCues: profile.hotCues.slice(0, 6),
-    updatedAt: Date.now(),
-  }
+  const normalized = normalizeProfile({ ...profile, updatedAt: Date.now() })
   const database = await openDatabase()
   if (!database) {
     memoryProfiles.set(profile.id, normalized)
     return
   }
-
   await new Promise<void>((resolve, reject) => {
     const transaction = database.transaction(PROFILE_STORE, 'readwrite')
     transaction.objectStore(PROFILE_STORE).put(normalized)
@@ -110,7 +118,6 @@ export async function clearTrackProfiles(): Promise<void> {
   memoryProfiles.clear()
   const database = await openDatabase()
   if (!database) return
-
   await new Promise<void>((resolve, reject) => {
     const transaction = database.transaction(PROFILE_STORE, 'readwrite')
     transaction.objectStore(PROFILE_STORE).clear()

@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import { effectiveBpm } from '../audio/tempo'
 import { getAudioEngine } from '../audio/AudioEngine'
 import { AudioSettings } from '../features/settings/AudioSettings'
+import { useKeyStore } from '../state/keyStore'
 import { useLibraryStore } from '../state/libraryStore'
 import { useMixerStore, type DeckId } from '../state/mixerStore'
 import { KnobControl } from './KnobControl'
@@ -17,6 +18,7 @@ const formatBytes = (bytes: number) => {
 
 export function StudioDock() {
   const decks = useMixerStore((state) => state.decks)
+  const deckKeys = useKeyStore((state) => state.decks)
   const trackHistory = useMixerStore((state) => state.trackHistory)
   const cueVolume = useMixerStore((state) => state.cueVolume)
   const cueMix = useMixerStore((state) => state.cueMix)
@@ -38,8 +40,8 @@ export function StudioDock() {
   const deckByTrackId = useMemo(() => new Map(
     deckIds
       .filter((deckId) => decks[deckId].trackId)
-      .map((deckId) => [decks[deckId].trackId!, { deckId, deck: decks[deckId] }]),
-  ), [decks])
+      .map((deckId) => [decks[deckId].trackId!, { deckId, deck: decks[deckId], key: deckKeys[deckId] }]),
+  ), [deckKeys, decks])
 
   const filteredTracks = useMemo(() => {
     const needle = query.trim().toLowerCase()
@@ -81,7 +83,7 @@ export function StudioDock() {
 
             {(browseSection === 'Local Files' || browseSection === 'Search') && (
               <div className="library-table library-track-table" role="table" aria-label="Local music library">
-                <div className="library-track-row library-head" role="row"><span>TITLE</span><span>ARTIST</span><span>ALBUM</span><span>BPM</span><span>SIZE</span><span>LOAD</span></div>
+                <div className="library-track-row library-head" role="row"><span>TITLE</span><span>ARTIST</span><span>ALBUM</span><span>BPM</span><span>KEY</span><span>SIZE</span><span>LOAD</span></div>
                 {filteredTracks.map((track) => {
                   const loaded = deckByTrackId.get(track.id)
                   const bpm = loaded ? effectiveBpm(loaded.deck.bpm, loaded.deck.pitchPercent) : 0
@@ -91,6 +93,7 @@ export function StudioDock() {
                       <span>{track.artist}</span>
                       <span>{track.album || '—'}</span>
                       <span>{bpm > 0 ? bpm.toFixed(1) : '—'}</span>
+                      <span>{loaded?.key.camelotKey || '—'}</span>
                       <span>{formatBytes(track.size)}</span>
                       <div className="library-actions">
                         <button type="button" aria-label={`Load ${track.title} to deck A`} onClick={() => requestDeckLoad('A', track.id)}>A</button>
