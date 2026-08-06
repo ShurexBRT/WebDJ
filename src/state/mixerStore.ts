@@ -222,17 +222,21 @@ export const useMixerStore = create<MixerState>((set) => ({
   setDeckBpm: (deckId, bpm, status = 'manual') => set((state) => ({
     decks: { ...state.decks, [deckId]: { ...state.decks[deckId], bpm, bpmConfidence: 0, bpmAnalysisStatus: status } },
   })),
-  setDeckBpmAnalysis: (deckId, bpmAnalysisStatus, bpm, bpmConfidence) => set((state) => ({
-    decks: {
-      ...state.decks,
-      [deckId]: {
-        ...state.decks[deckId],
-        bpm: bpm ?? state.decks[deckId].bpm,
-        bpmConfidence: bpmConfidence ?? state.decks[deckId].bpmConfidence,
-        bpmAnalysisStatus,
+  setDeckBpmAnalysis: (deckId, bpmAnalysisStatus, bpm, bpmConfidence) => set((state) => {
+    const currentDeck = state.decks[deckId]
+    if (currentDeck.bpmAnalysisStatus === 'manual' && bpmAnalysisStatus !== 'manual') return state
+    return {
+      decks: {
+        ...state.decks,
+        [deckId]: {
+          ...currentDeck,
+          bpm: bpm ?? currentDeck.bpm,
+          bpmConfidence: bpmConfidence ?? currentDeck.bpmConfidence,
+          bpmAnalysisStatus,
+        },
       },
-    },
-  })),
+    }
+  }),
   setDeckBeatOffset: (deckId, beatOffsetSeconds) => set((state) => ({
     decks: { ...state.decks, [deckId]: { ...state.decks[deckId], beatOffsetSeconds } },
   })),
