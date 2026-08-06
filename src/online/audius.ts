@@ -1,6 +1,7 @@
 import { responseToTrackFile, type FetchLike, type OnlineTrack, type OnlineTrackFile } from './types'
 
-type AudiusClient = ReturnType<(typeof import('@audius/sdk'))['sdk']>
+const AUDIUS_SDK_URL = 'https://cdn.jsdelivr.net/npm/@audius/sdk@15.3.1/dist/sdk.min.js'
+const AUDIUS_SCRIPT_ID = 'webdj-audius-sdk'
 
 type AudiusTrackRecord = {
   id?: string
@@ -24,15 +25,70 @@ type AudiusTrackRecord = {
   }
 }
 
+type AudiusClient = {
+  tracks: {
+    searchTracks: (params: {
+      query: string
+      limit?: number
+      offset?: number
+      sortMethod?: string
+    }) => Promise<{ data?: AudiusTrackRecord[] | null }>
+    getTrackStreamUrl: (params: {
+      trackId: string
+      apiKey?: string
+    }) => Promise<string>
+  }
+}
+
+type AudiusFactory = (options: { apiKey: string }) => AudiusClient
+
+type WindowWithAudius = Window & typeof globalThis & {
+  audiusSdk?: AudiusFactory
+}
+
+let sdkPromise: Promise<AudiusFactory> | null = null
 let cachedClient: { apiKey: string; client: AudiusClient } | null = null
+
+function loadAudiusFactory(): Promise<AudiusFactory> {
+  const audiusWindow = window as WindowWithAudius
+  if (audiusWindow.audiusSdk) return Promise.resolve(audiusWindow.audiusSdk)
+  if (sdkPromise) return sdkPromise
+
+  sdkPromise = new Promise((resolve, reject) => {
+    const existing = document.getElementById(AUDIUS_SCRIPT_ID) as HTMLScriptElement | null
+    const script = existing ?? document.createElement('script')
+
+    const finish = () => {
+      if (audiusWindow.audiusSdk) resolve(audiusWindow.audiusSdk)
+      else reject(new Error('The Audius browser SDK loaded without exposing its client factory'))
+    }
+    const fail = () => reject(new Error('Unable to load the Audius browser SDK'))
+
+    script.addEventListener('load', finish, { once: true })
+    script.addEventListener('error', fail, { once: true })
+
+    if (!existing) {
+      script.id = AUDIUS_SCRIPT_ID
+      script.src = AUDIUS_SDK_URL
+      script.async = true
+      script.crossOrigin = 'anonymous'
+      document.head.append(script)
+    }
+  }).catch((error) => {
+    sdkPromise = null
+    throw error
+  })
+
+  return sdkPromise
+}
 
 async function getAudiusClient(apiKey: string): Promise<AudiusClient> {
   const normalizedKey = apiKey.trim()
   if (!normalizedKey) throw new Error('Audius API Key is required')
   if (cachedClient?.apiKey === normalizedKey) return cachedClient.client
 
-  const { sdk } = await import('@audius/sdk')
-  const client = sdk({ apiKey: normalizedKey })
+  const factory = await loadAudiusFactory()
+  const client = factory({ apiKey: normalizedKey })
   cachedClient = { apiKey: normalizedKey, client }
   return client
 }
@@ -69,7 +125,7 @@ export async function searchAudiusTracks(query: string, apiKey: string): Promise
     offset: 0,
     sortMethod: 'relevant',
   })
-  return mapAudiusTracks((response.data ?? []) as AudiusTrackRecord[])
+  return mapAudiusTracks(response.data ?? [])
 }
 
 export async function loadAudiusTrack(
@@ -92,4 +148,5 @@ export async function loadAudiusTrack(
 
 export function clearAudiusClientCache(): void {
   cachedClient = null
+  sdkPromise = null
 }
