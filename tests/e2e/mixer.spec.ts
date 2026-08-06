@@ -1,10 +1,7 @@
 import { expect, test } from '@playwright/test'
+import { testWavFile } from './fixtures/audio'
 
-const fakeAudio = {
-  name: 'test-tone.wav',
-  mimeType: 'audio/wav',
-  buffer: Buffer.from('RIFF0000WAVEfmt '),
-}
+const fakeAudio = testWavFile('test-tone.wav', 2, 440)
 
 test('renders the complete dual-deck workspace', async ({ page }) => {
   await page.goto('/')
@@ -32,12 +29,35 @@ test('renders the complete dual-deck workspace', async ({ page }) => {
 test('loads independent local files into both decks', async ({ page }) => {
   await page.goto('/')
   await page.getByTestId('file-input-A').setInputFiles(fakeAudio)
-  await page.getByTestId('file-input-B').setInputFiles({ ...fakeAudio, name: 'second-track.wav' })
+  await page.getByTestId('file-input-B').setInputFiles(testWavFile('second-track.wav', 2, 660))
   await expect(page.getByTestId('deck-A')).toContainText('test-tone.wav')
   await expect(page.getByTestId('deck-B')).toContainText('second-track.wav')
   await expect(page.getByRole('button', { name: 'Play deck A', exact: true })).toBeEnabled()
   await expect(page.getByRole('button', { name: 'Play deck B', exact: true })).toBeEnabled()
   await expect(page.getByLabel('BPM analysis deck A', { exact: true })).toContainText(/Analyzing BPM|BPM not detected/)
+})
+
+test('plays pauses and seeks with the precision buffer clock', async ({ page }) => {
+  await page.goto('/')
+  await page.getByTestId('file-input-A').setInputFiles(testWavFile('precision-clock.wav', 3, 330))
+
+  const seek = page.getByLabel('Seek deck A', { exact: true })
+  await expect(seek).toBeEnabled()
+  await expect(seek).toHaveAttribute('max', /2\.9|3/)
+
+  await page.getByRole('button', { name: 'Play deck A', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Pause deck A', exact: true })).toBeVisible()
+  await page.waitForTimeout(350)
+  const advanced = Number(await seek.inputValue())
+  expect(advanced).toBeGreaterThan(0.15)
+
+  await page.getByRole('button', { name: 'Pause deck A', exact: true }).click()
+  const pausedAt = Number(await seek.inputValue())
+  await page.waitForTimeout(250)
+  expect(Number(await seek.inputValue())).toBeCloseTo(pausedAt, 1)
+
+  await seek.fill('1.25')
+  await expect(seek).toHaveValue('1.25')
 })
 
 test('changes gain and mixer controls without coupling the decks', async ({ page }) => {
