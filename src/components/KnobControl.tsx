@@ -9,6 +9,7 @@ type KnobControlProps = {
   step: number
   accent?: string
   valueLabel?: string
+  disabled?: boolean
   onChange: (value: number) => void
   onDoubleClick?: () => void
 }
@@ -22,6 +23,7 @@ export function KnobControl({
   step,
   accent = '#29b6ff',
   valueLabel,
+  disabled = false,
   onChange,
   onDoubleClick,
 }: KnobControlProps) {
@@ -33,7 +35,7 @@ export function KnobControl({
   } as CSSProperties
 
   return (
-    <label className="knob-control" style={style}>
+    <label className={`knob-control${disabled ? ' disabled' : ''}`} style={style}>
       <span className="knob-label">{label}</span>
       <span className="knob-shell" aria-hidden="true">
         <span className="knob-marker" />
@@ -46,6 +48,7 @@ export function KnobControl({
         max={max}
         step={step}
         value={value}
+        disabled={disabled}
         onDoubleClick={onDoubleClick}
         onChange={(event) => onChange(Number(event.target.value))}
       />
