@@ -5,6 +5,7 @@ import type { TrackProfile } from '../storage/trackProfiles'
 
 export type DeckId = 'A' | 'B'
 export type BpmAnalysisStatus = 'idle' | 'analyzing' | 'detected' | 'manual' | 'failed'
+export type KeyAnalysisStatus = 'idle' | 'analyzing' | 'detected' | 'manual' | 'failed'
 export type LoopBeats = 1 | 2 | 4 | 8 | 16
 
 export type TrackHistoryItem = {
@@ -24,6 +25,10 @@ export type DeckState = {
   bpm: number
   bpmConfidence: number
   bpmAnalysisStatus: BpmAnalysisStatus
+  key: string
+  camelotKey: string
+  keyConfidence: number
+  keyAnalysisStatus: KeyAnalysisStatus
   beatOffsetSeconds: number
   barOffsetBeats: number
   pitchPercent: number
@@ -70,6 +75,8 @@ type MixerState = {
   setDeckVolume: (deckId: DeckId, volume: number) => void
   setDeckBpm: (deckId: DeckId, bpm: number, status?: BpmAnalysisStatus) => void
   setDeckBpmAnalysis: (deckId: DeckId, status: BpmAnalysisStatus, bpm?: number, confidence?: number) => void
+  setDeckKey: (deckId: DeckId, key: string, camelotKey: string, status?: KeyAnalysisStatus) => void
+  setDeckKeyAnalysis: (deckId: DeckId, status: KeyAnalysisStatus, key?: string, camelotKey?: string, confidence?: number) => void
   setDeckBeatOffset: (deckId: DeckId, beatOffsetSeconds: number) => void
   setDeckBarOffset: (deckId: DeckId, barOffsetBeats: number) => void
   setDeckPitch: (deckId: DeckId, pitchPercent: number) => void
@@ -108,6 +115,10 @@ const emptyDeck = (): DeckState => ({
   bpm: 0,
   bpmConfidence: 0,
   bpmAnalysisStatus: 'idle',
+  key: '',
+  camelotKey: '',
+  keyConfidence: 0,
+  keyAnalysisStatus: 'idle',
   beatOffsetSeconds: 0,
   barOffsetBeats: 0,
   pitchPercent: 0,
@@ -188,6 +199,10 @@ export const useMixerStore = create<MixerState>((set) => ({
         bpm: profile.bpm,
         bpmConfidence: profile.bpmConfidence,
         bpmAnalysisStatus: profile.bpmAnalysisStatus,
+        key: profile.key ?? '',
+        camelotKey: profile.camelotKey ?? '',
+        keyConfidence: profile.keyConfidence ?? 0,
+        keyAnalysisStatus: profile.keyAnalysisStatus ?? 'idle',
         beatOffsetSeconds: profile.beatOffsetSeconds,
         barOffsetBeats: profile.barOffsetBeats,
         waveform: profile.waveform,
@@ -221,6 +236,30 @@ export const useMixerStore = create<MixerState>((set) => ({
         bpm: bpm ?? state.decks[deckId].bpm,
         bpmConfidence: bpmConfidence ?? state.decks[deckId].bpmConfidence,
         bpmAnalysisStatus,
+      },
+    },
+  })),
+  setDeckKey: (deckId, key, camelotKey, status = 'manual') => set((state) => ({
+    decks: {
+      ...state.decks,
+      [deckId]: {
+        ...state.decks[deckId],
+        key,
+        camelotKey,
+        keyConfidence: 0,
+        keyAnalysisStatus: status,
+      },
+    },
+  })),
+  setDeckKeyAnalysis: (deckId, keyAnalysisStatus, key, camelotKey, keyConfidence) => set((state) => ({
+    decks: {
+      ...state.decks,
+      [deckId]: {
+        ...state.decks[deckId],
+        key: key ?? state.decks[deckId].key,
+        camelotKey: camelotKey ?? state.decks[deckId].camelotKey,
+        keyConfidence: keyConfidence ?? state.decks[deckId].keyConfidence,
+        keyAnalysisStatus,
       },
     },
   })),
