@@ -26,6 +26,7 @@ function profileConfidence(profile: TrackProfile | null): number {
 }
 
 function candidateIntelligence(track: LibraryTrack, profile: TrackProfile | null, lastLoadedAt: number | null): TrackIntelligence {
+  const rmsDb = profile?.gainRmsDb
   return {
     id: track.id,
     title: track.title,
@@ -33,7 +34,7 @@ function candidateIntelligence(track: LibraryTrack, profile: TrackProfile | null
     genre: track.genre,
     bpm: profile?.bpm ?? 0,
     camelotKey: profile?.camelotKey ?? '',
-    rmsDb: Number.isFinite(profile?.gainRmsDb) ? profile!.gainRmsDb! : null,
+    rmsDb: typeof rmsDb === 'number' && Number.isFinite(rmsDb) ? rmsDb : null,
     durationSeconds: track.durationSeconds,
     analysisConfidence: profileConfidence(profile),
     lastLoadedAt,
@@ -57,18 +58,27 @@ export function AiAssistantPanel() {
     const playing = (['A', 'B'] as DeckId[]).find((deckId) => decks[deckId].isPlaying && decks[deckId].trackId)
     if (playing) return playing
     return (['A', 'B'] as DeckId[]).find((deckId) => decks[deckId].trackId) ?? null
-  }, [decks, masterDeck])
+  }, [decks.A.isPlaying, decks.A.trackId, decks.B.isPlaying, decks.B.trackId, masterDeck])
 
   const targetDeckId: DeckId | null = referenceDeckId === 'A' ? 'B' : referenceDeckId === 'B' ? 'A' : null
   const referenceDeck = referenceDeckId ? decks[referenceDeckId] : null
-  const referenceTrack = referenceDeck?.trackId ? tracks.find((track) => track.id === referenceDeck.trackId) ?? null : null
+  const referenceTrackId = referenceDeck?.trackId ?? null
+  const referenceTrackName = referenceDeck?.trackName ?? ''
+  const referenceBpm = referenceDeck?.bpm ?? 0
+  const referenceBpmConfidence = referenceDeck?.bpmConfidence ?? 0
+  const referenceDuration = referenceDeck?.duration ?? 0
+  const referenceTrack = referenceTrackId ? tracks.find((track) => track.id === referenceTrackId) ?? null : null
   const referenceKey = referenceDeckId ? deckKeys[referenceDeckId] : null
+  const referenceCamelotKey = referenceKey?.camelotKey ?? ''
+  const referenceKeyConfidence = referenceKey?.confidence ?? 0
   const referenceGain = referenceDeckId ? deckGain[referenceDeckId].analysis : null
+  const referenceRmsDb = referenceGain?.rmsDb ?? null
+  const referenceGainConfidence = referenceGain?.confidence ?? 0
 
   useEffect(() => {
     let cancelled = false
     const rank = async () => {
-      if (!referenceDeckId || !referenceDeck?.trackId || !referenceDeck.trackName || tracks.length < 2) {
+      if (!referenceDeckId || !referenceTrackId || !referenceTrackName || tracks.length < 2) {
         setRankedTracks([])
         return
       }
@@ -78,16 +88,16 @@ export function AiAssistantPanel() {
       const profiles = new Map(profileEntries)
       const historyMap = new Map(history.map((item) => [item.id, item.lastLoadedAt]))
       const reference: TrackIntelligence = {
-        id: referenceDeck.trackId,
-        title: referenceTrack?.title ?? referenceDeck.trackName,
+        id: referenceTrackId,
+        title: referenceTrack?.title ?? referenceTrackName,
         artist: referenceTrack?.artist ?? 'Unknown artist',
         genre: referenceTrack?.genre ?? '',
-        bpm: referenceDeck.bpm,
-        camelotKey: referenceKey?.camelotKey ?? '',
-        rmsDb: referenceGain ? referenceGain.rmsDb : null,
-        durationSeconds: referenceDeck.duration,
-        analysisConfidence: Math.max(0.25, (referenceDeck.bpmConfidence + (referenceKey?.confidence ?? 0) + (referenceGain?.confidence ?? 0)) / 3),
-        lastLoadedAt: historyMap.get(referenceDeck.trackId) ?? null,
+        bpm: referenceBpm,
+        camelotKey: referenceCamelotKey,
+        rmsDb: referenceRmsDb,
+        durationSeconds: referenceDuration,
+        analysisConfidence: Math.max(0.25, (referenceBpmConfidence + referenceKeyConfidence + referenceGainConfidence) / 3),
+        lastLoadedAt: historyMap.get(referenceTrackId) ?? null,
       }
       const candidates = tracks.map((track) => candidateIntelligence(track, profiles.get(track.id) ?? null, historyMap.get(track.id) ?? null))
       const scores = rankTrackCandidates(reference, candidates).slice(0, 5)
@@ -105,9 +115,9 @@ export function AiAssistantPanel() {
       }
     })
     return () => { cancelled = true }
-  }, [deckGain, deckKeys, decks, history, referenceDeck, referenceDeckId, referenceGain, referenceKey, referenceTrack, refreshToken, tracks])
+  }, [history, referenceBpm, referenceBpmConfidence, referenceCamelotKey, referenceDeckId, referenceDuration, referenceGainConfidence, referenceKeyConfidence, referenceRmsDb, referenceTrack, referenceTrackId, referenceTrackName, refreshToken, tracks])
 
-  if (!referenceDeckId || !referenceDeck?.trackId) {
+  if (!referenceDeckId || !referenceTrackId) {
     return <div className="ai-assistant-empty"><BrainCircuit size={26} /><strong>Load a reference track</strong><span>The assistant needs one loaded deck before it can rank the next song.</span></div>
   }
 
@@ -120,8 +130,8 @@ export function AiAssistantPanel() {
 
       <div className="ai-reference-track">
         <span>REFERENCE · DECK {referenceDeckId}</span>
-        <strong>{referenceTrack?.title ?? referenceDeck.trackName}</strong>
-        <small>{referenceDeck.bpm > 0 ? `${referenceDeck.bpm.toFixed(1)} BPM` : 'BPM unknown'} · {referenceKey?.camelotKey || 'Key unknown'} · {referenceTrack?.genre || 'Genre unknown'}</small>
+        <strong>{referenceTrack?.title ?? referenceTrackName}</strong>
+        <small>{referenceBpm > 0 ? `${referenceBpm.toFixed(1)} BPM` : 'BPM unknown'} · {referenceCamelotKey || 'Key unknown'} · {referenceTrack?.genre || 'Genre unknown'}</small>
       </div>
 
       <div className="ai-suggestion-list">
