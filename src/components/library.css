@@ -1,3 +1,8 @@
+.studio-dock {
+  grid-template-columns: minmax(0, 1fr) 310px;
+}
+.library-panel, .headphone-panel { min-height: 260px; }
+
 .library-import-button {
   min-height: 29px;
   display: inline-flex;
@@ -77,5 +82,11 @@
 .history-row strong { overflow: hidden; color: #e2e7ec; text-overflow: ellipsis; white-space: nowrap; }
 
 @media (max-width: 1450px) {
+  .studio-dock { grid-template-columns: minmax(0, 1fr) 290px; }
   .library-track-row { grid-template-columns: minmax(120px, 1fr) minmax(90px, .75fr) 70px 44px 52px 96px; padding: 0 6px; }
+}
+
+@media (max-width: 1280px) {
+  .studio-dock { grid-template-columns: minmax(0, 1fr) 285px; }
+  .headphone-panel { grid-column: auto; }
 }
