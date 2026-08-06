@@ -56,8 +56,8 @@ test('plays pauses and seeks with the precision buffer clock', async ({ page }) 
   await page.waitForTimeout(250)
   expect(Number(await seek.inputValue())).toBeCloseTo(pausedAt, 1)
 
-  await seek.fill('1.25')
-  await expect(seek).toHaveValue('1.25')
+  await seek.fill('1.2')
+  await expect(seek).toHaveValue('1.2')
 })
 
 test('changes gain and mixer controls without coupling the decks', async ({ page }) => {
