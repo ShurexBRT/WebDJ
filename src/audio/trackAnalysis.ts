@@ -1,11 +1,13 @@
 import { analyzeAudioBufferBpm, type BpmAnalysisResult } from './bpmAnalysis'
 import { analyzeAudioBufferKey, type KeyAnalysisResult } from './keyDetection'
+import { analyzeAudioBufferGain, type GainAnalysisResult } from './mastering'
 import { mergeChannelPeaks } from './waveform'
 
 export type TrackAnalysisResult = {
   waveform: number[]
   bpm: BpmAnalysisResult | null
   key: KeyAnalysisResult | null
+  gain: GainAnalysisResult | null
 }
 
 export async function analyzeTrackFile(
@@ -23,5 +25,6 @@ export async function analyzeTrackFile(
     waveform: mergeChannelPeaks(channels),
     bpm: analyzeAudioBufferBpm(buffer),
     key: analyzeAudioBufferKey(buffer),
+    gain: analyzeAudioBufferGain(buffer),
   }
 }
