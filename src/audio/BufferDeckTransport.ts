@@ -1,5 +1,6 @@
 import soundTouchProcessorUrl from '@soundtouchjs/audio-worklet/processor?url'
 import { clampTransportTime, loopedTransportPositionAt, type TransportClock, type TransportLoopRange } from './bufferTransport'
+import { SlipTimeline } from './slipTimeline'
 
 type BufferTransportCallbacks = {
   onTimeUpdate?: (currentTime: number, duration: number) => void
@@ -70,6 +71,7 @@ export class BufferDeckTransport {
   private processor: SoundTouchProcessorNode | null = null
   private callbacks: BufferTransportCallbacks = {}
   private loopRange: TransportLoopRange | null = null
+  private readonly slipTimeline = new SlipTimeline()
   private frameId: number | null = null
   private sourceGeneration = 0
   private clock: TransportClock = {
@@ -99,6 +101,7 @@ export class BufferDeckTransport {
     this.buffer = buffer
     this.callbacks = callbacks
     this.loopRange = null
+    this.slipTimeline.clear()
     this.clock = {
       offsetSeconds: 0,
       anchorContextTime: this.context.currentTime,
@@ -125,6 +128,7 @@ export class BufferDeckTransport {
 
   pause(): void {
     if (!this.clock.playing) return
+    this.slipTimeline.clear()
     this.reanchorClock(this.clock.playbackRate, false)
     this.stopCurrentSource()
     this.stopTicker()
@@ -151,6 +155,7 @@ export class BufferDeckTransport {
 
   setPlaybackRate(rate: number): void {
     const nextRate = Math.max(0.25, Math.min(4, rate))
+    this.slipTimeline.setPlaybackRate(this.context.currentTime, nextRate)
     if (this.clock.playing) this.reanchorClock(nextRate, true)
     else this.clock = { ...this.clock, playbackRate: nextRate }
 
@@ -193,6 +198,41 @@ export class BufferDeckTransport {
     this.emitTimeUpdate()
   }
 
+  beginSlip(owner: string): boolean {
+    if (!this.buffer || !this.clock.playing) return false
+    return this.slipTimeline.begin(
+      owner,
+      this.getCurrentTime(),
+      this.context.currentTime,
+      this.clock.playbackRate,
+      this.buffer.duration,
+    )
+  }
+
+  endSlip(owner: string): number | null {
+    const release = this.slipTimeline.end(owner, this.context.currentTime)
+    if (release.returnTime === null) return null
+    const returnTime = clampTransportTime(release.returnTime, this.getDuration())
+    this.seek(returnTime)
+    return returnTime
+  }
+
+  cancelSlip(returnToTimeline: boolean): number | null {
+    const release = this.slipTimeline.cancel(this.context.currentTime, returnToTimeline)
+    if (release.returnTime === null) return null
+    const returnTime = clampTransportTime(release.returnTime, this.getDuration())
+    this.seek(returnTime)
+    return returnTime
+  }
+
+  isSlipActive(): boolean {
+    return this.slipTimeline.isActive()
+  }
+
+  getSlipHiddenTime(): number | null {
+    return this.slipTimeline.hiddenPositionAt(this.context.currentTime)
+  }
+
   getCurrentTime(): number {
     return loopedTransportPositionAt(this.clock, this.context.currentTime, this.loopRange)
   }
@@ -215,6 +255,7 @@ export class BufferDeckTransport {
     this.buffer = null
     this.callbacks = {}
     this.loopRange = null
+    this.slipTimeline.clear()
     this.clock = {
       offsetSeconds: 0,
       anchorContextTime: this.context.currentTime,
@@ -266,6 +307,10 @@ export class BufferDeckTransport {
 
     source.onended = () => {
       if (generation !== this.sourceGeneration || !this.clock.playing || this.loopRange) return
+      if (this.slipTimeline.isActive()) {
+        const returnTime = this.cancelSlip(true)
+        if (returnTime !== null && returnTime < this.clock.durationSeconds) return
+      }
       this.clock = {
         ...this.clock,
         offsetSeconds: this.clock.durationSeconds,

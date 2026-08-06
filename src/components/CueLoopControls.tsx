@@ -1,4 +1,5 @@
-import { ChevronLeft, ChevronRight, CornerDownLeft, Flag, Repeat2 } from 'lucide-react'
+import type { KeyboardEvent, MouseEvent, PointerEvent } from 'react'
+import { ChevronLeft, ChevronRight, CornerDownLeft, Flag, Repeat2, Waves } from 'lucide-react'
 import { getAudioEngine } from '../audio/AudioEngine'
 import {
   BEAT_JUMP_OPTIONS,
@@ -10,6 +11,7 @@ import {
 } from '../audio/beatJump'
 import { createLoopRange, LOOP_BEAT_OPTIONS, type LoopBeats } from '../audio/loop'
 import { quantizeTime } from '../audio/phaseSync'
+import { beginDeckSlip, cancelDeckSlip, endDeckSlip, isDeckSlipActive } from '../audio/slipEngine'
 import { formatTime } from '../audio/transport'
 import {
   useMixerStore,
@@ -17,7 +19,12 @@ import {
   type DeckId,
   type DeckLoopRange,
 } from '../state/mixerStore'
+import { useSlipStore } from '../state/slipStore'
 import './cueLoop.css'
+
+const LOOP_SLIP_OWNER = 'loop'
+const BEAT_JUMP_SLIP_OWNER = 'beat-jump'
+const SLIP_HANDLED_ATTRIBUTE = 'slipHandled'
 
 export function CueLoopControls({ deckId }: { deckId: DeckId }) {
   const deck = useMixerStore((state) => state.decks[deckId])
@@ -27,6 +34,10 @@ export function CueLoopControls({ deckId }: { deckId: DeckId }) {
   const setDeckLoopBeats = useMixerStore((state) => state.setDeckLoopBeats)
   const setDeckLoopRange = useMixerStore((state) => state.setDeckLoopRange)
   const setDeckBeatJumpBeats = useMixerStore((state) => state.setDeckBeatJumpBeats)
+  const slipEnabled = useSlipStore((state) => state.enabled[deckId])
+  const slipActive = useSlipStore((state) => state.active[deckId])
+  const setSlipEnabled = useSlipStore((state) => state.setEnabled)
+  const setSlipActive = useSlipStore((state) => state.setActive)
   const engine = getAudioEngine()
   const loopRange = deck.loopRange
   const loopEnabled = Boolean(loopRange)
@@ -46,6 +57,30 @@ export function CueLoopControls({ deckId }: { deckId: DeckId }) {
     setDeckTime(deckId, time)
   }
 
+  const refreshSlipActive = () => setSlipActive(deckId, isDeckSlipActive(engine, deckId))
+
+  const beginSlip = (owner: string) => {
+    if (!slipEnabled || !deck.isPlaying) return false
+    const started = beginDeckSlip(engine, deckId, owner)
+    refreshSlipActive()
+    return started
+  }
+
+  const endSlip = (owner: string) => {
+    const returnTime = endDeckSlip(engine, deckId, owner)
+    refreshSlipActive()
+    if (returnTime !== null) setDeckTime(deckId, returnTime)
+  }
+
+  const toggleSlip = () => {
+    const nextEnabled = !slipEnabled
+    if (!nextEnabled) {
+      cancelDeckSlip(engine, deckId, false)
+      setSlipActive(deckId, false)
+    }
+    setSlipEnabled(deckId, nextEnabled)
+  }
+
   const applyLoopRange = (range: DeckLoopRange | null) => {
     setDeckLoopRange(deckId, range)
     engine.setDeckLoop(deckId, range)
@@ -60,9 +95,14 @@ export function CueLoopControls({ deckId }: { deckId: DeckId }) {
   const toggleLoop = () => {
     if (loopRange) {
       applyLoopRange(null)
+      endSlip(LOOP_SLIP_OWNER)
       return
     }
-    applyLoopRange(createLoopRange(quantizedPlayhead(), deck.duration, deck.loopBeats, deck.bpm))
+
+    const nextRange = createLoopRange(quantizedPlayhead(), deck.duration, deck.loopBeats, deck.bpm)
+    if (!nextRange) return
+    beginSlip(LOOP_SLIP_OWNER)
+    applyLoopRange(nextRange)
   }
 
   const jumpBeats = (direction: BeatJumpDirection) => {
@@ -85,8 +125,50 @@ export function CueLoopControls({ deckId }: { deckId: DeckId }) {
     jumpTo(clampBeatJumpTime(currentTime, deltaSeconds, deck.duration))
   }
 
+  const beginBeatJump = (direction: BeatJumpDirection) => {
+    if (!slipEnabled || !deck.isPlaying) return false
+    beginSlip(BEAT_JUMP_SLIP_OWNER)
+    jumpBeats(direction)
+    return true
+  }
+
+  const releaseBeatJump = () => endSlip(BEAT_JUMP_SLIP_OWNER)
+
+  const beatJumpButtonHandlers = (direction: BeatJumpDirection) => ({
+    onPointerDown: (event: PointerEvent<HTMLButtonElement>) => {
+      if (event.button !== 0) return
+      if (beginBeatJump(direction)) event.currentTarget.dataset[SLIP_HANDLED_ATTRIBUTE] = 'true'
+    },
+    onPointerUp: (event: PointerEvent<HTMLButtonElement>) => {
+      if (event.currentTarget.dataset[SLIP_HANDLED_ATTRIBUTE] === 'true') releaseBeatJump()
+    },
+    onPointerCancel: (event: PointerEvent<HTMLButtonElement>) => {
+      if (event.currentTarget.dataset[SLIP_HANDLED_ATTRIBUTE] === 'true') releaseBeatJump()
+      delete event.currentTarget.dataset[SLIP_HANDLED_ATTRIBUTE]
+    },
+    onKeyDown: (event: KeyboardEvent<HTMLButtonElement>) => {
+      if (event.repeat || (event.key !== 'Enter' && event.key !== ' ')) return
+      if (beginBeatJump(direction)) {
+        event.currentTarget.dataset[SLIP_HANDLED_ATTRIBUTE] = 'true'
+        event.preventDefault()
+      }
+    },
+    onKeyUp: (event: KeyboardEvent<HTMLButtonElement>) => {
+      if ((event.key === 'Enter' || event.key === ' ') && event.currentTarget.dataset[SLIP_HANDLED_ATTRIBUTE] === 'true') {
+        releaseBeatJump()
+      }
+    },
+    onClick: (event: MouseEvent<HTMLButtonElement>) => {
+      if (event.currentTarget.dataset[SLIP_HANDLED_ATTRIBUTE] === 'true') {
+        delete event.currentTarget.dataset[SLIP_HANDLED_ATTRIBUTE]
+        return
+      }
+      jumpBeats(direction)
+    },
+  })
+
   return (
-    <section className="cue-loop-panel" aria-label={`Cue and loop deck ${deckId}`}>
+    <section className={`cue-loop-panel${slipActive ? ' slip-active' : ''}`} aria-label={`Cue and loop deck ${deckId}`}>
       <div className="cue-loop-row">
         <button type="button" aria-label={`Set cue point deck ${deckId}`} disabled={!deck.trackName} onClick={() => setDeckCuePoint(deckId, quantizedPlayhead())}><Flag size={14} /> CUE</button>
         <button type="button" aria-label={`Return to cue point deck ${deckId}`} disabled={deck.cuePoint === null} onClick={() => deck.cuePoint !== null && jumpTo(deck.cuePoint)}><CornerDownLeft size={14} /> {deck.cuePoint === null ? '--:--' : formatTime(deck.cuePoint)}</button>
@@ -95,12 +177,13 @@ export function CueLoopControls({ deckId }: { deckId: DeckId }) {
             <button key={beats} type="button" className={deck.loopBeats === beats ? 'active' : ''} aria-pressed={deck.loopBeats === beats} aria-label={`${beats} beat loop deck ${deckId}`} onClick={() => selectLoopSize(beats as LoopBeats)}>{beats}</button>
           ))}
         </div>
+        <button type="button" className={`slip-toggle${slipEnabled ? ' active' : ''}`} aria-label={`Slip mode deck ${deckId}`} aria-pressed={slipEnabled} onClick={toggleSlip}><Waves size={14} /> SLIP</button>
         <button type="button" className={`loop-toggle${loopEnabled ? ' active' : ''}`} aria-label={`Loop deck ${deckId}`} aria-pressed={loopEnabled} disabled={!deck.trackName || deck.bpm <= 0 || deck.duration <= 0} onClick={toggleLoop}><Repeat2 size={15} /> {loopEnabled ? 'ON' : 'LOOP'}</button>
       </div>
 
       <div className="beat-jump-row" aria-label={`Beat jump deck ${deckId}`}>
         <span>BEAT JUMP</span>
-        <button type="button" aria-label={`Beat jump backward deck ${deckId}`} disabled={!canBeatJump} onClick={() => jumpBeats(-1)}><ChevronLeft size={13} /></button>
+        <button type="button" aria-label={`Beat jump backward deck ${deckId}`} disabled={!canBeatJump} {...beatJumpButtonHandlers(-1)}><ChevronLeft size={13} /></button>
         <div className="beat-jump-size-row" aria-label={`Beat jump size deck ${deckId}`}>
           {BEAT_JUMP_OPTIONS.map((beats) => (
             <button
@@ -115,10 +198,10 @@ export function CueLoopControls({ deckId }: { deckId: DeckId }) {
             </button>
           ))}
         </div>
-        <button type="button" aria-label={`Beat jump forward deck ${deckId}`} disabled={!canBeatJump} onClick={() => jumpBeats(1)}><ChevronRight size={13} /></button>
+        <button type="button" aria-label={`Beat jump forward deck ${deckId}`} disabled={!canBeatJump} {...beatJumpButtonHandlers(1)}><ChevronRight size={13} /></button>
       </div>
 
-      <small>{deck.bpm <= 0 ? 'BPM required for loop and beat jump' : loopRange ? `${formatTime(loopRange.start)} – ${formatTime(loopRange.end)} · jump moves loop` : `${deck.loopBeats} beat loop · ${deck.beatJumpBeats} beat jump`}</small>
+      <small>{slipActive ? 'SLIP ACTIVE · hidden timeline running' : deck.bpm <= 0 ? 'BPM required for loop and beat jump' : loopRange ? `${formatTime(loopRange.start)} – ${formatTime(loopRange.end)} · jump moves loop` : `${deck.loopBeats} beat loop · ${deck.beatJumpBeats} beat jump`}</small>
     </section>
   )
 }

@@ -5,7 +5,7 @@ export function clampFxMix(value: number): number {
 
 export function filterFrequencyFromPosition(position: number): number {
   const safe = Math.min(1, Math.max(-1, position))
-  if (safe === 0) return 20_000
+  if (safe === 0) return 20
   if (safe < 0) {
     const amount = Math.abs(safe)
     return 20_000 * Math.pow(80 / 20_000, amount)
