@@ -1,0 +1,19 @@
+.pwa-controls { display: flex; align-items: center; gap: 5px; }
+.pwa-controls button, .pwa-offline {
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border: 1px solid #30404d;
+  border-radius: 3px;
+  padding: 0 8px;
+  background: linear-gradient(180deg, #14202a, #090f14);
+  color: #9bdaf8;
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: .06em;
+}
+.pwa-controls button { cursor: pointer; }
+.pwa-controls button:hover { border-color: #29b6ff; }
+.pwa-offline { border-color: #6b3a27; background: rgba(116, 54, 26, .2); color: #ffab72; }
