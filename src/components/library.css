@@ -42,7 +42,7 @@
 .library-track-row {
   min-height: 34px;
   display: grid;
-  grid-template-columns: minmax(150px, 1.2fr) minmax(100px, .8fr) minmax(90px, .7fr) 52px 58px 105px;
+  grid-template-columns: minmax(145px, 1.2fr) minmax(95px, .8fr) minmax(80px, .7fr) 48px 44px 55px 105px;
   align-items: center;
   padding: 0 8px;
   border-bottom: 1px solid #1c2229;
@@ -83,7 +83,7 @@
 
 @media (max-width: 1450px) {
   .studio-dock { grid-template-columns: minmax(0, 1fr) 290px; }
-  .library-track-row { grid-template-columns: minmax(120px, 1fr) minmax(90px, .75fr) 70px 44px 52px 96px; padding: 0 6px; }
+  .library-track-row { grid-template-columns: minmax(110px, 1fr) minmax(80px, .7fr) 65px 42px 38px 48px 96px; padding: 0 6px; }
 }
 
 @media (max-width: 1280px) {
