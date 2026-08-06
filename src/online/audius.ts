@@ -54,7 +54,7 @@ function loadAudiusFactory(): Promise<AudiusFactory> {
   if (audiusWindow.audiusSdk) return Promise.resolve(audiusWindow.audiusSdk)
   if (sdkPromise) return sdkPromise
 
-  sdkPromise = new Promise((resolve, reject) => {
+  const pending = new Promise<AudiusFactory>((resolve, reject) => {
     const existing = document.getElementById(AUDIUS_SCRIPT_ID) as HTMLScriptElement | null
     const script = existing ?? document.createElement('script')
 
@@ -74,12 +74,13 @@ function loadAudiusFactory(): Promise<AudiusFactory> {
       script.crossOrigin = 'anonymous'
       document.head.append(script)
     }
-  }).catch((error) => {
+  }).catch((error): never => {
     sdkPromise = null
     throw error
   })
 
-  return sdkPromise
+  sdkPromise = pending
+  return pending
 }
 
 async function getAudiusClient(apiKey: string): Promise<AudiusClient> {
