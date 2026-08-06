@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { useMixerStore, type DeckId } from '../state/mixerStore'
-import { saveTrackProfile, type PersistedBpmStatus } from './trackProfiles'
+import { saveTrackProfile, type PersistedBpmStatus, type PersistedKeyStatus } from './trackProfiles'
 
 export function useTrackProfilePersistence(deckId: DeckId): void {
   const deck = useMixerStore((state) => state.decks[deckId])
@@ -12,6 +12,9 @@ export function useTrackProfilePersistence(deckId: DeckId): void {
       const bpmAnalysisStatus: PersistedBpmStatus = deck.bpmAnalysisStatus === 'analyzing'
         ? 'idle'
         : deck.bpmAnalysisStatus
+      const keyAnalysisStatus: PersistedKeyStatus = deck.keyAnalysisStatus === 'analyzing'
+        ? 'idle'
+        : deck.keyAnalysisStatus
 
       void saveTrackProfile({
         id: deck.trackId!,
@@ -21,6 +24,10 @@ export function useTrackProfilePersistence(deckId: DeckId): void {
         bpm: deck.bpm,
         bpmConfidence: deck.bpmConfidence,
         bpmAnalysisStatus,
+        key: deck.key,
+        camelotKey: deck.camelotKey,
+        keyConfidence: deck.keyConfidence,
+        keyAnalysisStatus,
         beatOffsetSeconds: deck.beatOffsetSeconds,
         barOffsetBeats: deck.barOffsetBeats,
         waveform: deck.waveform,
@@ -38,10 +45,14 @@ export function useTrackProfilePersistence(deckId: DeckId): void {
     deck.bpm,
     deck.bpmAnalysisStatus,
     deck.bpmConfidence,
+    deck.camelotKey,
     deck.cuePoint,
     deck.fileSize,
     deck.hotCues,
     deck.isAnalyzing,
+    deck.key,
+    deck.keyAnalysisStatus,
+    deck.keyConfidence,
     deck.lastModified,
     deck.loopBeats,
     deck.trackId,
