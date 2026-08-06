@@ -141,6 +141,9 @@ export function scoreTrackCandidate(
   const warnings: string[] = []
   const bpmDifference = reference.bpm > 0 && candidate.bpm > 0 ? Math.abs(reference.bpm - candidate.bpm) : null
 
+  if (breakdown.recencyPenalty > 0) warnings.push('Recently played')
+  if (candidate.analysisConfidence < 0.55) warnings.push('Low analysis confidence')
+
   if (breakdown.tempo >= 85 && bpmDifference !== null) reasons.push(`${bpmDifference.toFixed(1)} BPM difference`)
   else if (reference.bpm <= 0 || candidate.bpm <= 0) warnings.push('BPM analysis missing')
   else warnings.push(`${bpmDifference!.toFixed(1)} BPM apart`)
@@ -153,8 +156,6 @@ export function scoreTrackCandidate(
   else if (reference.rmsDb === null || candidate.rmsDb === null) warnings.push('Energy estimate unavailable')
 
   if (breakdown.genre >= 78) reasons.push('Related genre metadata')
-  if (breakdown.recencyPenalty > 0) warnings.push('Recently played')
-  if (candidate.analysisConfidence < 0.55) warnings.push('Low analysis confidence')
 
   return {
     trackId: candidate.id,
