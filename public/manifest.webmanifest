@@ -1,0 +1,38 @@
+{
+  "name": "WebDJ Studio",
+  "short_name": "WebDJ",
+  "description": "A local-first browser DJ workstation with two decks, mixer, effects, recording and controller support.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#030405",
+  "theme_color": "#090b10",
+  "categories": ["music", "entertainment", "utilities"],
+  "icons": [
+    {
+      "src": "icons/webdj.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/webdj-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Open music library",
+      "short_name": "Library",
+      "url": "./#library-dock"
+    },
+    {
+      "name": "Open mix recorder",
+      "short_name": "Recorder",
+      "url": "./#recorder-panel"
+    }
+  ]
+}
