@@ -1,6 +1,7 @@
 import { create } from 'zustand'
-import { fingerprintFile } from '../storage/trackProfiles'
 import { readTrackMetadata, type TrackMetadata } from '../library/metadata'
+import type { OnlineSourceId, OnlineTrack } from '../online/types'
+import { fingerprintFile } from '../storage/trackProfiles'
 import type { DeckId } from './mixerStore'
 
 export type LibraryTrack = TrackMetadata & {
@@ -10,6 +11,11 @@ export type LibraryTrack = TrackMetadata & {
   size: number
   type: string
   addedAt: number
+  source: 'local' | OnlineSourceId
+  sourceTrackId: string | null
+  artworkUrl: string
+  permalink: string
+  durationSeconds: number
 }
 
 type DeckLoadRequest = {
@@ -22,6 +28,7 @@ type LibraryState = {
   isImporting: boolean
   deckRequests: Record<DeckId, DeckLoadRequest | null>
   addFiles: (files: Iterable<File>) => Promise<void>
+  addRemoteTrack: (file: File, onlineTrack: OnlineTrack) => Promise<LibraryTrack>
   removeTrack: (id: string) => void
   clearLibrary: () => void
   requestDeckLoad: (deckId: DeckId, trackId: string) => void
@@ -29,6 +36,12 @@ type LibraryState = {
 }
 
 const isAudioFile = (file: File) => file.type.startsWith('audio/') || /\.(mp3|wav|flac|m4a|aac|ogg|opus|webm)$/i.test(file.name)
+
+const upsertTracks = (current: LibraryTrack[], imported: LibraryTrack[]) => {
+  const byId = new Map(current.map((track) => [track.id, track]))
+  imported.forEach((track) => byId.set(track.id, track))
+  return Array.from(byId.values())
+}
 
 export const useLibraryStore = create<LibraryState>((set, get) => ({
   tracks: [],
@@ -48,17 +61,41 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
           size: file.size,
           type: file.type,
           addedAt: Date.now(),
+          source: 'local' as const,
+          sourceTrackId: null,
+          artworkUrl: '',
+          permalink: '',
+          durationSeconds: 0,
           ...metadata,
         } satisfies LibraryTrack
       }))
-      set((state) => {
-        const byId = new Map(state.tracks.map((track) => [track.id, track]))
-        imported.forEach((track) => byId.set(track.id, track))
-        return { tracks: Array.from(byId.values()), isImporting: false }
-      })
+      set((state) => ({ tracks: upsertTracks(state.tracks, imported), isImporting: false }))
     } catch {
       set({ isImporting: false })
     }
+  },
+  addRemoteTrack: async (file, onlineTrack) => {
+    if (!isAudioFile(file)) throw new Error('The online source did not return a supported audio file')
+    const id = await fingerprintFile(file)
+    const imported: LibraryTrack = {
+      id,
+      file,
+      fileName: file.name,
+      size: file.size,
+      type: file.type,
+      addedAt: Date.now(),
+      title: onlineTrack.title,
+      artist: onlineTrack.artist,
+      album: onlineTrack.album,
+      genre: onlineTrack.genre,
+      source: onlineTrack.source,
+      sourceTrackId: onlineTrack.id,
+      artworkUrl: onlineTrack.artworkUrl,
+      permalink: onlineTrack.permalink,
+      durationSeconds: onlineTrack.durationSeconds,
+    }
+    set((state) => ({ tracks: upsertTracks(state.tracks, [imported]) }))
+    return imported
   },
   removeTrack: (id) => set((state) => ({ tracks: state.tracks.filter((track) => track.id !== id) })),
   clearLibrary: () => set({ tracks: [], deckRequests: { A: null, B: null } }),
