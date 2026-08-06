@@ -1,3 +1,4 @@
+import { BufferDeckTransport } from './BufferDeckTransport'
 import { calculateCrossfaderGains } from './crossfader'
 import { clampFxMix, delaySecondsFromMs, feedbackGain, filterFrequencyFromPosition } from './fx'
 import { decibelsToGain, readAnalyserLevel } from './meter'
@@ -16,8 +17,7 @@ type SinkAudioElement = HTMLAudioElement & {
 }
 
 type DeckChannel = {
-  element: HTMLAudioElement
-  source: MediaElementAudioSourceNode
+  transport: BufferDeckTransport
   inputGain: GainNode
   low: BiquadFilterNode
   mid: BiquadFilterNode
@@ -35,7 +35,6 @@ type DeckChannel = {
   channelGain: GainNode
   crossfadeGain: GainNode
   cueGain: GainNode
-  objectUrl: string | null
   basePlaybackRate: number
   nudgeTimer: number | null
 }
@@ -132,11 +131,6 @@ export class AudioEngine {
   }
 
   private createDeckChannel(): DeckChannel {
-    const element = new Audio()
-    element.preload = 'metadata'
-    element.preservesPitch = true
-
-    const source = this.context.createMediaElementSource(element)
     const inputGain = this.context.createGain()
     const low = this.createEqBand('lowshelf', 180)
     const mid = this.createEqBand('peaking', 1_200, 0.8)
@@ -154,6 +148,7 @@ export class AudioEngine {
     const channelGain = this.context.createGain()
     const crossfadeGain = this.context.createGain()
     const cueGain = this.context.createGain()
+    const transport = new BufferDeckTransport(this.context, inputGain)
 
     filter.frequency.value = 20_000
     dryGain.gain.value = 1
@@ -165,7 +160,7 @@ export class AudioEngine {
     fxReturn.gain.value = 1
     cueGain.gain.value = 0
 
-    source.connect(inputGain).connect(low).connect(mid).connect(high).connect(filter)
+    inputGain.connect(low).connect(mid).connect(high).connect(filter)
     filter.connect(dryGain)
     filter.connect(echoSend).connect(echoDelay).connect(echoFeedback).connect(echoDelay)
     echoDelay.connect(fxReturn)
@@ -176,8 +171,7 @@ export class AudioEngine {
     filter.connect(cueGain).connect(this.cueBus)
 
     return {
-      element,
-      source,
+      transport,
       inputGain,
       low,
       mid,
@@ -195,7 +189,6 @@ export class AudioEngine {
       channelGain,
       crossfadeGain,
       cueGain,
-      objectUrl: null,
       basePlaybackRate: 1,
       nudgeTimer: null,
     }
@@ -257,39 +250,25 @@ export class AudioEngine {
 
   async loadFile(deckId: DeckId, file: File, callbacks: DeckCallbacks = {}): Promise<void> {
     const deck = this.decks[deckId]
-    deck.element.pause()
-
-    if (deck.objectUrl) URL.revokeObjectURL(deck.objectUrl)
-
-    const objectUrl = URL.createObjectURL(file)
-    deck.objectUrl = objectUrl
-    deck.element.src = objectUrl
-    deck.element.currentTime = 0
-    deck.element.playbackRate = deck.basePlaybackRate
-
-    deck.element.ontimeupdate = () => {
-      callbacks.onTimeUpdate?.(deck.element.currentTime, Number.isFinite(deck.element.duration) ? deck.element.duration : 0)
+    if (deck.nudgeTimer !== null) {
+      window.clearTimeout(deck.nudgeTimer)
+      deck.nudgeTimer = null
     }
-    deck.element.onloadedmetadata = () => {
-      callbacks.onTimeUpdate?.(0, Number.isFinite(deck.element.duration) ? deck.element.duration : 0)
-    }
-    deck.element.onended = () => callbacks.onEnded?.()
-    deck.element.load()
+    deck.transport.setPlaybackRate(deck.basePlaybackRate)
+    await deck.transport.loadFile(file, callbacks)
   }
 
-  async play(deckId: DeckId): Promise<void> {
+  async play(deckId: DeckId): Promise<boolean> {
     await this.initialize()
-    await this.decks[deckId].element.play()
+    return this.decks[deckId].transport.play()
   }
 
   pause(deckId: DeckId): void {
-    this.decks[deckId].element.pause()
+    this.decks[deckId].transport.pause()
   }
 
   seek(deckId: DeckId, seconds: number): void {
-    const element = this.decks[deckId].element
-    if (!Number.isFinite(element.duration)) return
-    element.currentTime = Math.min(element.duration, Math.max(0, seconds))
+    this.decks[deckId].transport.seek(seconds)
   }
 
   setDeckPitch(deckId: DeckId, pitchPercent: number): void {
@@ -299,21 +278,21 @@ export class AudioEngine {
       deck.nudgeTimer = null
     }
     deck.basePlaybackRate = playbackRateFromPitch(pitchPercent)
-    deck.element.playbackRate = deck.basePlaybackRate
+    deck.transport.setPlaybackRate(deck.basePlaybackRate)
   }
 
   nudgeDeck(deckId: DeckId, direction: NudgeDirection, amountPercent = 4, durationMs = 180): void {
     const deck = this.decks[deckId]
     if (deck.nudgeTimer !== null) window.clearTimeout(deck.nudgeTimer)
-    deck.element.playbackRate = nudgePlaybackRate(deck.basePlaybackRate, direction, amountPercent)
+    deck.transport.setPlaybackRate(nudgePlaybackRate(deck.basePlaybackRate, direction, amountPercent))
     deck.nudgeTimer = window.setTimeout(() => {
-      deck.element.playbackRate = deck.basePlaybackRate
+      deck.transport.setPlaybackRate(deck.basePlaybackRate)
       deck.nudgeTimer = null
     }, Math.max(40, durationMs))
   }
 
   getDeckCurrentTime(deckId: DeckId): number {
-    return this.decks[deckId].element.currentTime
+    return this.decks[deckId].transport.getCurrentTime()
   }
 
   setDeckTrim(deckId: DeckId, decibels: number): void {
@@ -394,9 +373,8 @@ export class AudioEngine {
 
   async close(): Promise<void> {
     for (const deck of Object.values(this.decks)) {
-      deck.element.pause()
       if (deck.nudgeTimer !== null) window.clearTimeout(deck.nudgeTimer)
-      if (deck.objectUrl) URL.revokeObjectURL(deck.objectUrl)
+      deck.transport.dispose()
     }
     this.masterOutput.pause()
     this.cueOutput.pause()
