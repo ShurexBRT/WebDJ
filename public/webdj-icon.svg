@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="WebDJ Studio icon">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#111821"/>
+      <stop offset="1" stop-color="#030405"/>
+    </linearGradient>
+    <radialGradient id="disc" cx="42%" cy="36%" r="70%">
+      <stop offset="0" stop-color="#303741"/>
+      <stop offset="0.55" stop-color="#11151a"/>
+      <stop offset="1" stop-color="#050607"/>
+    </radialGradient>
+  </defs>
+  <rect width="512" height="512" rx="92" fill="url(#bg)"/>
+  <rect x="62" y="88" width="388" height="336" rx="30" fill="#07090c" stroke="#2c333d" stroke-width="8"/>
+  <circle cx="168" cy="232" r="88" fill="url(#disc)" stroke="#29b6ff" stroke-width="12"/>
+  <circle cx="344" cy="232" r="88" fill="url(#disc)" stroke="#ff921f" stroke-width="12"/>
+  <circle cx="168" cy="232" r="21" fill="#29b6ff"/>
+  <circle cx="344" cy="232" r="21" fill="#ff921f"/>
+  <rect x="241" y="132" width="30" height="198" rx="15" fill="#1a2028" stroke="#515b68" stroke-width="6"/>
+  <rect x="248" y="171" width="16" height="72" rx="8" fill="#dfe7ec"/>
+  <rect x="122" y="361" width="268" height="18" rx="9" fill="#161b22" stroke="#3a424d" stroke-width="5"/>
+  <rect x="221" y="354" width="70" height="32" rx="9" fill="#e7edf2"/>
+</svg>
