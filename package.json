@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "lucide-react": "latest",
+    "meyda": "^5.6.3",
     "react": "latest",
     "react-dom": "latest",
     "zustand": "latest"
