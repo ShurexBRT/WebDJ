@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { getAudioEngine } from './audio/AudioEngine'
 import { HorizontalMeter } from './components/HorizontalMeter'
 import { KnobControl } from './components/KnobControl'
+import { PwaControls } from './components/PwaControls'
 import { RecorderPanel } from './components/RecorderPanel'
 import { StudioDock } from './components/StudioDock'
 import { useKeyboardControls } from './controllers/useKeyboardControls'
@@ -49,6 +50,7 @@ function App() {
           <button className={quantizeEnabled ? 'active' : ''} type="button" aria-label="Quantize" aria-pressed={quantizeEnabled} onClick={() => setQuantizeEnabled(!quantizeEnabled)}><Magnet size={14} /> QNTZ</button>
           <button className={recorderStatus === 'recording' || recorderStatus === 'paused' ? 'recording' : ''} type="button" aria-label="Open mix recorder" onClick={() => scrollTo('recorder-panel')}>REC</button>
           <button type="button" onClick={() => scrollTo('audio-routing')}><Settings size={14} /> Settings</button>
+          <PwaControls />
         </nav>
 
         <div className="studio-clock">{now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
