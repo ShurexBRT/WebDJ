@@ -39,14 +39,42 @@
 .fx-module {
   display: grid;
   grid-template-columns: 54px minmax(0, 1fr);
-  gap: 6px;
+  gap: 5px 6px;
   align-items: center;
   padding-top: 7px;
   border-top: 1px solid #232930;
 }
+.fx-module > .effect-toggle { grid-row: 1 / span 2; }
+.fx-module > .fx-knob-row { grid-column: 2; }
 .reverb-module { grid-template-columns: 54px 62px; justify-content: start; }
+.reverb-module > .effect-toggle { grid-row: auto; }
+.reverb-module > .knob-control { grid-column: 2; }
 .fx-knob-row { min-width: 0; display: flex; align-items: start; justify-content: space-around; gap: 2px; }
 .fx-filter-row { justify-content: center; padding-bottom: 1px; }
+
+.echo-timing-mode {
+  grid-column: 2;
+  display: grid;
+  grid-template-columns: 42px 42px minmax(52px, 1fr);
+  gap: 3px;
+}
+.echo-timing-mode button, .echo-timing-mode select {
+  min-height: 23px;
+  border: 1px solid #303842;
+  border-radius: 2px;
+  background: #090c0f;
+  color: #7f8995;
+  font-size: 6px;
+  font-weight: 900;
+  letter-spacing: .06em;
+}
+.echo-timing-mode button { cursor: pointer; }
+.echo-timing-mode button.active {
+  color: #061016;
+  border-color: var(--deck-accent);
+  background: var(--deck-accent);
+}
+.echo-timing-mode select { padding: 0 4px; color: #b7c2cc; }
 
 .effect-toggle {
   min-height: 38px;
@@ -67,6 +95,7 @@
 }
 
 .effects-panel .knob-control { width: 54px; min-height: 62px; gap: 2px; }
+.effects-panel .knob-control.disabled { opacity: .45; }
 .effects-panel .knob-label { font-size: 6px; }
 .effects-panel .knob-shell { width: 37px; height: 37px; }
 .effects-panel .knob-shell::before { inset: -3px; }
@@ -81,4 +110,5 @@
   .effects-panel .knob-control { width: 48px; }
   .effects-panel .knob-shell { width: 34px; height: 34px; }
   .effects-panel .knob-marker { transform-origin: 1px 14px; }
+  .echo-timing-mode { grid-template-columns: 38px 38px minmax(46px, 1fr); }
 }
