@@ -37,7 +37,7 @@ export const useAutoDjStore = create<AutoDjState>((set) => ({
   ...initialState(),
   enable: () => set({ enabled: true, status: 'armed', error: null }),
   disable: () => set({ enabled: false, status: 'off', nextTrackId: null, nextTrackTitle: '', nextScore: 0, error: null }),
-  setStatus: (status) => set({ status, error: status === 'error' ? undefined : null }),
+  setStatus: (status) => set((state) => ({ status, error: status === 'error' ? state.error : null })),
   setNextTrack: (nextTrackId, nextTrackTitle, nextScore) => set({ nextTrackId, nextTrackTitle, nextScore }),
   clearNextTrack: () => set({ nextTrackId: null, nextTrackTitle: '', nextScore: 0 }),
   completeTransition: () => set((state) => ({
