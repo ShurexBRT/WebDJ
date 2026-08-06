@@ -6,9 +6,7 @@ test('publishes an installable manifest and offline shell worker', async ({ page
   const manifestHref = await page.locator('link[rel="manifest"]').getAttribute('href')
   expect(manifestHref).toBe('/WebDJ/manifest.webmanifest')
 
-  // Vite's dev server exposes public/ files at the origin root. The DOM href above
-  // separately verifies the production GitHub Pages base path generated at build time.
-  const manifestResponse = await request.get(new URL('/manifest.webmanifest', page.url()).toString())
+  const manifestResponse = await request.get(new URL(manifestHref!, page.url()).toString())
   expect(manifestResponse.ok()).toBe(true)
   const manifest = await manifestResponse.json()
   expect(manifest).toMatchObject({
@@ -18,7 +16,7 @@ test('publishes an installable manifest and offline shell worker', async ({ page
     orientation: 'landscape',
   })
 
-  const workerResponse = await request.get(new URL('/sw.js', page.url()).toString())
+  const workerResponse = await request.get(new URL('/WebDJ/sw.js', page.url()).toString())
   expect(workerResponse.ok()).toBe(true)
   const worker = await workerResponse.text()
   expect(worker).toContain("const CACHE_PREFIX = 'webdj-shell-'")
