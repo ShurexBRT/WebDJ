@@ -5,6 +5,7 @@ import { HorizontalMeter } from './components/HorizontalMeter'
 import { KnobControl } from './components/KnobControl'
 import { RecorderPanel } from './components/RecorderPanel'
 import { StudioDock } from './components/StudioDock'
+import { useKeyboardControls } from './controllers/useKeyboardControls'
 import { Deck } from './features/deck/Deck'
 import { Mixer } from './features/mixer/Mixer'
 import { useSessionPersistence } from './storage/useSessionPersistence'
@@ -15,6 +16,7 @@ const scrollTo = (id: string) => document.getElementById(id)?.scrollIntoView({ b
 
 function App() {
   useSessionPersistence()
+  useKeyboardControls()
   const [now, setNow] = useState(() => new Date())
   const devices = useMixerStore((state) => state.outputDevices)
   const masterOutputId = useMixerStore((state) => state.masterOutputId)
