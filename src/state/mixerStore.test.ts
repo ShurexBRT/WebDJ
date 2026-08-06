@@ -15,6 +15,8 @@ describe('mixer store', () => {
     useMixerStore.getState().setDeckCue('A', true)
     useMixerStore.getState().setDeckFilter('A', -0.5)
     useMixerStore.getState().setDeckEcho('A', { echoEnabled: true, echoMix: 0.5 })
+    useMixerStore.getState().setDeckLoopRange('A', { start: 4, end: 6 })
+    useMixerStore.getState().setDeckBeatJumpBeats('A', 16)
     useMixerStore.getState().loadTrack('A', 'track-a.mp3')
 
     const deck = useMixerStore.getState().decks.A
@@ -29,6 +31,8 @@ describe('mixer store', () => {
     expect(deck.cuePoint).toBeNull()
     expect(deck.hotCues).toEqual([null, null, null, null, null, null])
     expect(deck.loopBeats).toBe(4)
+    expect(deck.loopRange).toBeNull()
+    expect(deck.beatJumpBeats).toBe(16)
     expect(deck.pitchPercent).toBe(3.5)
     expect(deck.cueEnabled).toBe(true)
     expect(deck.filter).toBe(-0.5)
@@ -107,19 +111,26 @@ describe('mixer store', () => {
     expect(deck.cuePoint).toBe(4)
     expect(deck.hotCues).toEqual([4, 8, null, null, null, null])
     expect(deck.loopBeats).toBe(8)
+    expect(deck.loopRange).toBeNull()
     expect(useMixerStore.getState().trackHistory[0]).toMatchObject({ id: 'track-1', name: 'cached.wav' })
   })
 
-  it('updates persistent cue slots independently', () => {
+  it('updates persistent cues and live phrase controls independently', () => {
     useMixerStore.getState().setDeckCuePoint('A', 6.5)
     useMixerStore.getState().setDeckHotCue('A', 2, 12)
     useMixerStore.getState().setDeckHotCue('B', 2, 18)
     useMixerStore.getState().setDeckLoopBeats('B', 16)
+    useMixerStore.getState().setDeckLoopRange('A', { start: 8, end: 10 })
+    useMixerStore.getState().setDeckBeatJumpBeats('B', 8)
 
     expect(useMixerStore.getState().decks.A.cuePoint).toBe(6.5)
     expect(useMixerStore.getState().decks.A.hotCues[2]).toBe(12)
     expect(useMixerStore.getState().decks.B.hotCues[2]).toBe(18)
     expect(useMixerStore.getState().decks.B.loopBeats).toBe(16)
+    expect(useMixerStore.getState().decks.A.loopRange).toEqual({ start: 8, end: 10 })
+    expect(useMixerStore.getState().decks.B.loopRange).toBeNull()
+    expect(useMixerStore.getState().decks.B.beatJumpBeats).toBe(8)
+    expect(useMixerStore.getState().decks.A.beatJumpBeats).toBe(4)
   })
 
   it('updates EQ and playback position', () => {
