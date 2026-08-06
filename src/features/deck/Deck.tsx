@@ -14,6 +14,7 @@ import { TempoControls } from '../../components/TempoControls'
 import { Waveform } from '../../components/Waveform'
 import { fingerprintFile, getTrackProfile } from '../../storage/trackProfiles'
 import { useTrackProfilePersistence } from '../../storage/useTrackProfilePersistence'
+import { useGainAssistStore } from '../../state/gainAssistStore'
 import { useKeyStore } from '../../state/keyStore'
 import { useLibraryStore } from '../../state/libraryStore'
 import { useMixerStore, type DeckId } from '../../state/mixerStore'
@@ -23,9 +24,13 @@ export function Deck({ side }: { side: DeckId }) {
   useTrackProfilePersistence(side)
   const deck = useMixerStore((state) => state.decks[side])
   const deckKey = useKeyStore((state) => state.decks[side])
+  const gainAssist = useGainAssistStore((state) => state.decks[side])
   const resetDeckKey = useKeyStore((state) => state.resetDeck)
   const setKeyAnalysis = useKeyStore((state) => state.setAnalysis)
   const restoreKeyProfile = useKeyStore((state) => state.restoreProfile)
+  const setGainAnalysis = useGainAssistStore((state) => state.setAnalysis)
+  const restoreGainProfile = useGainAssistStore((state) => state.restoreProfile)
+  const resetGainAnalysis = useGainAssistStore((state) => state.resetDeckAnalysis)
   const otherSide: DeckId = side === 'A' ? 'B' : 'A'
   const otherDeck = useMixerStore((state) => state.decks[otherSide])
   const masterDeck = useMixerStore((state) => state.masterDeck)
@@ -42,6 +47,7 @@ export function Deck({ side }: { side: DeckId }) {
   const setDeckBpmAnalysis = useMixerStore((state) => state.setDeckBpmAnalysis)
   const setDeckCue = useMixerStore((state) => state.setDeckCue)
   const setDeckPitch = useMixerStore((state) => state.setDeckPitch)
+  const setDeckTrim = useMixerStore((state) => state.setDeckTrim)
   const setMasterDeck = useMixerStore((state) => state.setMasterDeck)
   const engine = getAudioEngine()
   const progress = progressFromTime(deck.currentTime, deck.duration)
@@ -102,14 +108,29 @@ export function Deck({ side }: { side: DeckId }) {
 
   const toggleMaster = () => setMasterDeck(isMaster ? null : side)
 
-  const applyAnalysis = (analysis: TrackAnalysisResult, includeWaveformAndBpm = true) => {
+  const applyAnalysis = (
+    analysis: TrackAnalysisResult,
+    includeWaveformAndBpm = true,
+    includeKey = true,
+    includeGain = true,
+  ) => {
     if (includeWaveformAndBpm) {
       setDeckWaveform(side, analysis.waveform)
       if (analysis.bpm) setDeckBpmAnalysis(side, 'detected', analysis.bpm.bpm, analysis.bpm.confidence)
       else setDeckBpmAnalysis(side, 'failed', 0, 0)
     }
-    if (analysis.key) setKeyAnalysis(side, 'detected', analysis.key.key, analysis.key.camelot, analysis.key.confidence)
-    else setKeyAnalysis(side, 'failed', '', '', 0)
+    if (includeKey) {
+      if (analysis.key) setKeyAnalysis(side, 'detected', analysis.key.key, analysis.key.camelot, analysis.key.confidence)
+      else setKeyAnalysis(side, 'failed', '', '', 0)
+    }
+    if (includeGain) {
+      setGainAnalysis(side, analysis.gain)
+      if (analysis.gain && gainAssist.enabled) {
+        const trim = analysis.gain.recommendedTrimDb
+        setDeckTrim(side, trim)
+        engine.setDeckTrim(side, trim)
+      }
+    }
     setDeckAnalysis(side, false)
   }
 
@@ -117,6 +138,7 @@ export function Deck({ side }: { side: DeckId }) {
     if (!file) return
     loadTrack(side, file.name)
     resetDeckKey(side)
+    resetGainAnalysis(side)
     setDeckAnalysis(side, true)
     setDeckBpmAnalysis(side, 'analyzing', 0, 0)
     setKeyAnalysis(side, 'analyzing', '', '', 0)
@@ -147,11 +169,21 @@ export function Deck({ side }: { side: DeckId }) {
       if (cachedProfile) {
         restoreDeckProfile(side, cachedProfile)
         restoreKeyProfile(side, cachedProfile)
-        if ((cachedProfile.keyAnalysisStatus ?? 'idle') !== 'idle') return
+        restoreGainProfile(side, cachedProfile)
+        const keyCached = (cachedProfile.keyAnalysisStatus ?? 'idle') !== 'idle'
+        const gainCached = Number.isFinite(cachedProfile.gainRecommendationDb)
+        if (keyCached && gainCached) {
+          if (gainAssist.enabled && Number.isFinite(cachedProfile.gainRecommendationDb)) {
+            const trim = cachedProfile.gainRecommendationDb!
+            setDeckTrim(side, trim)
+            engine.setDeckTrim(side, trim)
+          }
+          return
+        }
 
         setDeckAnalysis(side, true)
-        setKeyAnalysis(side, 'analyzing', '', '', 0)
-        applyAnalysis(await analyzeTrackFile(file, engine.context), false)
+        if (!keyCached) setKeyAnalysis(side, 'analyzing', '', '', 0)
+        applyAnalysis(await analyzeTrackFile(file, engine.context), false, !keyCached, !gainCached)
         return
       }
 
@@ -160,6 +192,7 @@ export function Deck({ side }: { side: DeckId }) {
       setDeckAnalysis(side, false, error instanceof Error ? error.message : 'Audio analysis failed')
       setDeckBpmAnalysis(side, 'failed', 0, 0)
       setKeyAnalysis(side, 'failed', '', '', 0)
+      setGainAnalysis(side, null)
     }
   }
 
