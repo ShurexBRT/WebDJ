@@ -123,7 +123,7 @@ async function selectAndPrepareNextTrack(): Promise<void> {
 
 async function autoDjTick(): Promise<void> {
   const autoDj = useAutoDjStore.getState()
-  if (!autoDj.enabled) return
+  if (!autoDj.enabled || autoDj.status === 'error') return
 
   const transition = useAutoTransitionStore.getState()
   if (transition.status === 'completed') {
