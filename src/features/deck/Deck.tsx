@@ -146,7 +146,10 @@ export function Deck({ side }: { side: DeckId }) {
   }
 
   const handleFileRef = useRef(handleFile)
-  handleFileRef.current = handleFile
+
+  useEffect(() => {
+    handleFileRef.current = handleFile
+  }, [handleFile])
 
   useEffect(() => {
     if (!libraryRequest) return
