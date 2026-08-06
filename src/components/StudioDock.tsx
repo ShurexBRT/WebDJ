@@ -8,6 +8,7 @@ import { useLibraryStore } from '../state/libraryStore'
 import { useMixerStore, type DeckId } from '../state/mixerStore'
 import { ControllerSettings } from './ControllerSettings'
 import { KnobControl } from './KnobControl'
+import { OnlineSourceBrowser } from './OnlineSourceBrowser'
 import './library.css'
 
 const deckIds: DeckId[] = ['A', 'B']
@@ -58,7 +59,7 @@ export function StudioDock() {
           <button className="active" type="button">LIBRARY</button>
           <label className="library-import-button"><Upload size={12} /> {isImporting ? 'IMPORTING…' : 'ADD TRACKS'}<input aria-label="Add tracks to library" type="file" accept="audio/*" multiple onChange={(event) => { void addFiles(event.target.files ?? []); event.currentTarget.value = '' }} /></label>
           <button type="button" disabled={libraryTracks.length === 0} onClick={clearLibrary}>CLEAR</button>
-          <span>{libraryTracks.length} LOCAL TRACKS</span>
+          <span>{libraryTracks.length} LIBRARY TRACKS</span>
         </div>
         <div className="library-body">
           <aside className="library-sidebar">
@@ -80,32 +81,33 @@ export function StudioDock() {
             onDragLeave={(event) => { if (event.currentTarget === event.target) setIsDragging(false) }}
             onDrop={(event) => { event.preventDefault(); setIsDragging(false); void addFiles(event.dataTransfer.files) }}
           >
-            <label className="library-search"><Search size={15} /><input aria-label="Search music library" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search title, artist, album or genre" /></label>
-
             {(browseSection === 'Local Files' || browseSection === 'Search') && (
-              <div className="library-table library-track-table" role="table" aria-label="Local music library">
-                <div className="library-track-row library-head" role="row"><span>TITLE</span><span>ARTIST</span><span>ALBUM</span><span>BPM</span><span>KEY</span><span>SIZE</span><span>LOAD</span></div>
-                {filteredTracks.map((track) => {
-                  const loaded = deckByTrackId.get(track.id)
-                  const bpm = loaded ? effectiveBpm(loaded.deck.bpm, loaded.deck.pitchPercent) : 0
-                  return (
-                    <div className={`library-track-row${loaded ? ` deck-row-${loaded.deckId.toLowerCase()}` : ''}`} role="row" key={track.id}>
-                      <strong title={track.fileName}>{track.title}</strong>
-                      <span>{track.artist}</span>
-                      <span>{track.album || '—'}</span>
-                      <span>{bpm > 0 ? bpm.toFixed(1) : '—'}</span>
-                      <span>{loaded?.key.camelotKey || '—'}</span>
-                      <span>{formatBytes(track.size)}</span>
-                      <div className="library-actions">
-                        <button type="button" aria-label={`Load ${track.title} to deck A`} onClick={() => requestDeckLoad('A', track.id)}>A</button>
-                        <button type="button" aria-label={`Load ${track.title} to deck B`} onClick={() => requestDeckLoad('B', track.id)}>B</button>
-                        <button type="button" aria-label={`Remove ${track.title} from library`} onClick={() => removeTrack(track.id)}><Trash2 size={11} /></button>
+              <>
+                <label className="library-search"><Search size={15} /><input aria-label="Search music library" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search title, artist, album or genre" /></label>
+                <div className="library-table library-track-table" role="table" aria-label="Local music library">
+                  <div className="library-track-row library-head" role="row"><span>TITLE</span><span>ARTIST</span><span>ALBUM</span><span>BPM</span><span>KEY</span><span>SIZE</span><span>LOAD</span></div>
+                  {filteredTracks.map((track) => {
+                    const loaded = deckByTrackId.get(track.id)
+                    const bpm = loaded ? effectiveBpm(loaded.deck.bpm, loaded.deck.pitchPercent) : 0
+                    return (
+                      <div className={`library-track-row${loaded ? ` deck-row-${loaded.deckId.toLowerCase()}` : ''}`} role="row" key={track.id}>
+                        <strong title={track.fileName}>{track.title}</strong>
+                        <span>{track.artist}</span>
+                        <span>{track.album || '—'}</span>
+                        <span>{bpm > 0 ? bpm.toFixed(1) : '—'}</span>
+                        <span>{loaded?.key.camelotKey || '—'}</span>
+                        <span>{formatBytes(track.size)}</span>
+                        <div className="library-actions">
+                          <button type="button" aria-label={`Load ${track.title} to deck A`} onClick={() => requestDeckLoad('A', track.id)}>A</button>
+                          <button type="button" aria-label={`Load ${track.title} to deck B`} onClick={() => requestDeckLoad('B', track.id)}>B</button>
+                          <button type="button" aria-label={`Remove ${track.title} from library`} onClick={() => removeTrack(track.id)}><Trash2 size={11} /></button>
+                        </div>
                       </div>
-                    </div>
-                  )
-                })}
-                {filteredTracks.length === 0 && <div className="library-empty">Drop audio files here or use ADD TRACKS. Files stay local in your browser.</div>}
-              </div>
+                    )
+                  })}
+                  {filteredTracks.length === 0 && <div className="library-empty">Drop audio files here or use ADD TRACKS. Files stay local in your browser.</div>}
+                </div>
+              </>
             )}
 
             {browseSection === 'History' && (
@@ -116,7 +118,9 @@ export function StudioDock() {
               </div>
             )}
 
-            {!['Local Files', 'Search', 'History'].includes(browseSection) && <div className="library-empty">{browseSection} is reserved for the next source adapter milestone.</div>}
+            {browseSection === 'Audius' && <OnlineSourceBrowser source="audius" />}
+            {browseSection === 'Jamendo' && <OnlineSourceBrowser source="jamendo" />}
+            {!['Local Files', 'Search', 'History', 'Audius', 'Jamendo'].includes(browseSection) && <div className="library-empty">{browseSection} will use saved local collections in a later library-organizing pass.</div>}
             {isDragging && <div className="library-drop-overlay">DROP AUDIO FILES TO IMPORT</div>}
           </div>
         </div>
