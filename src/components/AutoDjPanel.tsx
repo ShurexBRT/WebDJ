@@ -1,5 +1,5 @@
 import { Bot, Radio, ShieldAlert, Sparkles, Square } from 'lucide-react'
-import { takeOverAutoDj } from '../ai/AutoDjController'
+import { takeOverAutoDj } from '../ai/autoDjControl'
 import { useAutoDjStore } from '../state/autoDjStore'
 import { useAutoTransitionStore } from '../state/autoTransitionStore'
 import { useLibraryStore } from '../state/libraryStore'
