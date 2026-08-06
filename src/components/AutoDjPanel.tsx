@@ -60,7 +60,7 @@ export function AutoDjPanel() {
         <span style={{ width: `${Math.round(transitionProgress * 100)}%` }} />
       </div>
 
-      <div className="full-autodj-count"><Sparkles size={12} /><span>MIXES</span><strong>{completedTransitions}</strong></div>
+      <div className="full-autodj-count" aria-label="Completed AutoDJ mixes"><Sparkles size={12} /><span>MIXES</span><strong>{completedTransitions}</strong></div>
 
       {!enabled ? (
         <button className="full-autodj-toggle" type="button" aria-label="Enable Full AutoDJ" disabled={!canEnable} onClick={enable}><Bot size={14} /> ENABLE</button>
