@@ -1,13 +1,6 @@
 import { expect, test } from '@playwright/test'
 
 test('searches Jamendo and loads a result through the shared deck pipeline', async ({ page }) => {
-  await page.route('https://api.jamendo.com/v3.0/tracks/file/**', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'audio/mpeg',
-      body: Buffer.from('mock jamendo audio'),
-    })
-  })
   await page.route('https://api.jamendo.com/v3.0/tracks/**', async (route) => {
     await route.fulfill({
       status: 200,
@@ -28,6 +21,15 @@ test('searches Jamendo and loads a result through the shared deck pipeline', asy
           musicinfo: { tags: { genres: ['House'] } },
         }],
       }),
+    })
+  })
+  // Playwright evaluates matching routes in reverse registration order, so the
+  // specific stream route must be registered after the generic search route.
+  await page.route('https://api.jamendo.com/v3.0/tracks/file/**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'audio/mpeg',
+      body: Buffer.from('mock jamendo audio'),
     })
   })
 
