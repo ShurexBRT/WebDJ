@@ -1,5 +1,6 @@
 import { Library, Magnet, Music2, Settings, Waves } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
+import { AutoDjController } from './ai/AutoDjController'
 import { getAudioEngine } from './audio/AudioEngine'
 import { HorizontalMeter } from './components/HorizontalMeter'
 import { KnobControl } from './components/KnobControl'
@@ -38,6 +39,7 @@ function App() {
 
   return (
     <main className="app-shell">
+      <AutoDjController />
       <header className="studio-header">
         <div className="studio-brand">
           <Music2 size={24} />
