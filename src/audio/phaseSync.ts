@@ -52,6 +52,26 @@ export function phaseAlignedTime(
   return Math.max(0, targetTime + correction)
 }
 
+export function nextBeatContextTime(
+  referenceTrackTime: number,
+  referenceBaseBpm: number,
+  referenceEffectiveBpm: number,
+  referenceOffset: number,
+  contextTime: number,
+  minimumLeadSeconds = 0.04,
+): number {
+  const effectiveBeatDuration = beatDurationSeconds(referenceEffectiveBpm)
+  if (effectiveBeatDuration <= 0 || beatDurationSeconds(referenceBaseBpm) <= 0 || !Number.isFinite(contextTime)) {
+    return Math.max(0, contextTime || 0)
+  }
+
+  const phase = beatPhase(referenceTrackTime, referenceBaseBpm, referenceOffset)
+  let delay = (1 - phase) * effectiveBeatDuration
+  const safeLead = Math.max(0, minimumLeadSeconds)
+  if (delay < safeLead) delay += effectiveBeatDuration
+  return Math.max(0, contextTime + delay)
+}
+
 export function quantizeTime(
   timeSeconds: number,
   bpm: number,
