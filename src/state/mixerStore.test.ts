@@ -9,6 +9,7 @@ describe('mixer store', () => {
     useMixerStore.getState().setDeckTrim('A', 6)
     useMixerStore.getState().setDeckVolume('A', 0.42)
     useMixerStore.getState().setDeckBpm('A', 124)
+    useMixerStore.getState().setDeckKey('A', 'A minor', '8A')
     useMixerStore.getState().setDeckBeatOffset('A', 0.17)
     useMixerStore.getState().setDeckBarOffset('A', 2)
     useMixerStore.getState().setDeckPitch('A', 3.5)
@@ -24,6 +25,9 @@ describe('mixer store', () => {
     expect(deck.volume).toBe(0.42)
     expect(deck.bpm).toBe(0)
     expect(deck.bpmAnalysisStatus).toBe('idle')
+    expect(deck.key).toBe('')
+    expect(deck.camelotKey).toBe('')
+    expect(deck.keyAnalysisStatus).toBe('idle')
     expect(deck.beatOffsetSeconds).toBe(0)
     expect(deck.barOffsetBeats).toBe(0)
     expect(deck.cuePoint).toBeNull()
@@ -37,24 +41,35 @@ describe('mixer store', () => {
     expect(deck.currentTime).toBe(0)
   })
 
-  it('stores automatic BPM results with confidence and allows manual override', () => {
+  it('stores automatic BPM and key results with manual overrides', () => {
     useMixerStore.getState().setDeckBpmAnalysis('A', 'analyzing', 0, 0)
     useMixerStore.getState().setDeckBpmAnalysis('A', 'detected', 128.2, 0.81)
+    useMixerStore.getState().setDeckKeyAnalysis('A', 'detected', 'A minor', '8A', 0.72)
 
     expect(useMixerStore.getState().decks.A.bpm).toBe(128.2)
     expect(useMixerStore.getState().decks.A.bpmConfidence).toBe(0.81)
     expect(useMixerStore.getState().decks.A.bpmAnalysisStatus).toBe('detected')
+    expect(useMixerStore.getState().decks.A.key).toBe('A minor')
+    expect(useMixerStore.getState().decks.A.camelotKey).toBe('8A')
+    expect(useMixerStore.getState().decks.A.keyConfidence).toBe(0.72)
+    expect(useMixerStore.getState().decks.A.keyAnalysisStatus).toBe('detected')
 
     useMixerStore.getState().setDeckBpm('A', 129)
+    useMixerStore.getState().setDeckKey('A', 'C major', '8B')
     expect(useMixerStore.getState().decks.A.bpm).toBe(129)
     expect(useMixerStore.getState().decks.A.bpmConfidence).toBe(0)
     expect(useMixerStore.getState().decks.A.bpmAnalysisStatus).toBe('manual')
+    expect(useMixerStore.getState().decks.A.key).toBe('C major')
+    expect(useMixerStore.getState().decks.A.camelotKey).toBe('8B')
+    expect(useMixerStore.getState().decks.A.keyConfidence).toBe(0)
+    expect(useMixerStore.getState().decks.A.keyAnalysisStatus).toBe('manual')
   })
 
-  it('keeps deck, tempo, beat-grid and FX state independent', () => {
+  it('keeps deck, tempo, key, beat-grid and FX state independent', () => {
     useMixerStore.getState().loadTrack('A', 'a.wav')
     useMixerStore.getState().setPlaying('A', true)
     useMixerStore.getState().setDeckBpm('A', 120)
+    useMixerStore.getState().setDeckKey('A', 'A minor', '8A')
     useMixerStore.getState().setDeckBeatOffset('A', 0.12)
     useMixerStore.getState().setDeckBarOffset('A', 3)
     useMixerStore.getState().setDeckPitch('A', 4)
@@ -65,6 +80,8 @@ describe('mixer store', () => {
     expect(useMixerStore.getState().decks.B.isPlaying).toBe(false)
     expect(useMixerStore.getState().decks.A.bpm).toBe(120)
     expect(useMixerStore.getState().decks.B.bpm).toBe(0)
+    expect(useMixerStore.getState().decks.A.camelotKey).toBe('8A')
+    expect(useMixerStore.getState().decks.B.camelotKey).toBe('')
     expect(useMixerStore.getState().decks.A.beatOffsetSeconds).toBe(0.12)
     expect(useMixerStore.getState().decks.B.beatOffsetSeconds).toBe(0)
     expect(useMixerStore.getState().decks.A.barOffsetBeats).toBe(3)
@@ -86,6 +103,10 @@ describe('mixer store', () => {
       bpm: 126,
       bpmConfidence: 0.91,
       bpmAnalysisStatus: 'detected',
+      key: 'D minor',
+      camelotKey: '7A',
+      keyConfidence: 0.74,
+      keyAnalysisStatus: 'detected',
       beatOffsetSeconds: 0.08,
       barOffsetBeats: 2,
       waveform: [0.2, 0.7],
@@ -103,6 +124,8 @@ describe('mixer store', () => {
     expect(deck.trackId).toBe('track-1')
     expect(deck.volume).toBe(0.33)
     expect(deck.bpm).toBe(126)
+    expect(deck.key).toBe('D minor')
+    expect(deck.camelotKey).toBe('7A')
     expect(deck.waveform).toEqual([0.2, 0.7])
     expect(deck.cuePoint).toBe(4)
     expect(deck.hotCues).toEqual([4, 8, null, null, null, null])
