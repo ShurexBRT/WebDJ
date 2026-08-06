@@ -1,4 +1,4 @@
-import { type CSSProperties } from 'react'
+import { useEffect, useRef, type CSSProperties } from 'react'
 import { ChevronsLeft, ChevronsRight, Headphones, Pause, Play, Upload } from 'lucide-react'
 import { getAudioEngine } from '../../audio/AudioEngine'
 import { analyzeFileBpm } from '../../audio/bpmAnalysis'
@@ -14,6 +14,7 @@ import { TempoControls } from '../../components/TempoControls'
 import { Waveform } from '../../components/Waveform'
 import { fingerprintFile, getTrackProfile } from '../../storage/trackProfiles'
 import { useTrackProfilePersistence } from '../../storage/useTrackProfilePersistence'
+import { useLibraryStore } from '../../state/libraryStore'
 import { useMixerStore, type DeckId } from '../../state/mixerStore'
 import './transportControls.css'
 
@@ -24,6 +25,8 @@ export function Deck({ side }: { side: DeckId }) {
   const otherDeck = useMixerStore((state) => state.decks[otherSide])
   const masterDeck = useMixerStore((state) => state.masterDeck)
   const quantizeEnabled = useMixerStore((state) => state.quantizeEnabled)
+  const libraryRequest = useLibraryStore((state) => state.deckRequests[side])
+  const consumeLibraryRequest = useLibraryStore((state) => state.consumeDeckRequest)
   const loadTrack = useMixerStore((state) => state.loadTrack)
   const setDeckIdentity = useMixerStore((state) => state.setDeckIdentity)
   const restoreDeckProfile = useMixerStore((state) => state.restoreDeckProfile)
@@ -141,6 +144,18 @@ export function Deck({ side }: { side: DeckId }) {
       setDeckBpmAnalysis(side, 'failed', 0, 0)
     }
   }
+
+  const handleFileRef = useRef(handleFile)
+
+  useEffect(() => {
+    handleFileRef.current = handleFile
+  })
+
+  useEffect(() => {
+    if (!libraryRequest) return
+    void handleFileRef.current(libraryRequest.track.file)
+    consumeLibraryRequest(side, libraryRequest.requestId)
+  }, [consumeLibraryRequest, libraryRequest, side])
 
   const togglePlayback = async () => {
     if (!deck.trackName) return

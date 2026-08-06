@@ -1,4 +1,4 @@
-import { Disc3, Library, Magnet, Music2, Settings, Waves } from 'lucide-react'
+import { Library, Magnet, Music2, Settings, Waves } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { getAudioEngine } from './audio/AudioEngine'
 import { HorizontalMeter } from './components/HorizontalMeter'
@@ -44,7 +44,6 @@ function App() {
         <nav className="studio-nav" aria-label="Studio sections">
           <button className="active" type="button" onClick={() => scrollTo('library-dock')}><Library size={14} /> Library</button>
           <button type="button" onClick={() => scrollTo('effects-deck-A')}><Waves size={14} /> Effects</button>
-          <button type="button" onClick={() => scrollTo('sampler-panel')}><Disc3 size={14} /> Sampler</button>
           <button className={quantizeEnabled ? 'active' : ''} type="button" aria-label="Quantize" aria-pressed={quantizeEnabled} onClick={() => setQuantizeEnabled(!quantizeEnabled)}><Magnet size={14} /> QNTZ</button>
           <button className={recorderStatus === 'recording' || recorderStatus === 'paused' ? 'recording' : ''} type="button" aria-label="Open mix recorder" onClick={() => scrollTo('recorder-panel')}>REC</button>
           <button type="button" onClick={() => scrollTo('audio-routing')}><Settings size={14} /> Settings</button>
