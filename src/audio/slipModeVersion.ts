@@ -1,0 +1,1 @@
+export const SLIP_MODE_TRANSPORT_VERSION = 1
