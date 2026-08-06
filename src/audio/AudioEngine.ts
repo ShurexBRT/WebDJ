@@ -271,6 +271,10 @@ export class AudioEngine {
     this.decks[deckId].transport.seek(seconds)
   }
 
+  setDeckLoop(deckId: DeckId, range: { start: number; end: number } | null): void {
+    this.decks[deckId].transport.setLoop(range)
+  }
+
   setDeckPitch(deckId: DeckId, pitchPercent: number): void {
     const deck = this.decks[deckId]
     if (deck.nudgeTimer !== null) {
