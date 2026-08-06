@@ -74,4 +74,12 @@ describe('online music adapters', () => {
     expect(extensionForAudioType('audio/flac')).toBe('flac')
     expect(safeFileName('  žurka / test?  ')).toBe('zurka test')
   })
+
+  it('rejects successful JSON error pages instead of disguising them as MP3 files', async () => {
+    const response = new Response(JSON.stringify({ error: 'stream unavailable' }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    })
+    await expect(responseToTrackFile(response, track)).rejects.toThrow('instead of audio')
+  })
 })
