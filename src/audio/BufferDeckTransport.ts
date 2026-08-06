@@ -110,12 +110,16 @@ export class BufferDeckTransport {
   }
 
   async play(): Promise<boolean> {
+    return this.playAt(this.context.currentTime)
+  }
+
+  async playAt(contextTime: number): Promise<boolean> {
     if (!this.buffer) throw new Error('No decoded audio is loaded')
     if (this.clock.playing) return false
     if (this.clock.offsetSeconds >= this.buffer.duration) this.clock.offsetSeconds = 0
     if (this.context.state === 'suspended') await this.context.resume()
     await registerSoundTouch(this.context)
-    this.startSource(this.clock.offsetSeconds)
+    this.startSource(this.clock.offsetSeconds, Math.max(this.context.currentTime, contextTime))
     return true
   }
 
@@ -241,7 +245,7 @@ export class BufferDeckTransport {
     this.source.loop = true
   }
 
-  private startSource(offsetSeconds: number): void {
+  private startSource(offsetSeconds: number, startContextTime = this.context.currentTime): void {
     if (!this.buffer) return
     const Constructor = soundTouchConstructor
     if (!Constructor) throw new Error('SoundTouch worklet is not registered')
@@ -282,10 +286,10 @@ export class BufferDeckTransport {
     this.clock = {
       ...this.clock,
       offsetSeconds,
-      anchorContextTime: this.context.currentTime,
+      anchorContextTime: startContextTime,
       playing: true,
     }
-    source.start(0, offsetSeconds)
+    source.start(startContextTime, offsetSeconds)
     this.startTicker()
     this.emitTimeUpdate()
   }
