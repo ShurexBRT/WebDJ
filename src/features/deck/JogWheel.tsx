@@ -34,7 +34,7 @@ type JogWheelProps = {
   pitchPercent: number
   phaseError: number
   showPhase: boolean
-  onTogglePlayback: () => void
+  onTogglePlayback: () => void | Promise<void>
   onScrub: (time: number) => void
   onJogRate: (multiplier: number) => void
   onJogRelease: () => void
@@ -85,7 +85,7 @@ export function JogWheel({
   }
 
   useEffect(() => () => {
-    clearKeyboardTimer()
+    if (keyboardTimer.current !== null) window.clearTimeout(keyboardTimer.current)
     onJogRelease()
   }, [onJogRelease])
 
@@ -226,7 +226,7 @@ export function JogWheel({
 
       <button
         className="transport-button"
-        onClick={onTogglePlayback}
+        onClick={() => { void onTogglePlayback() }}
         disabled={!hasTrack}
         aria-label={`${isPlaying ? 'Pause' : 'Play'} deck ${deckId} platter`}
       >
