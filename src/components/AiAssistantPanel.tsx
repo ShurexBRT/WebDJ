@@ -1,5 +1,5 @@
 import { Bot, BrainCircuit, RefreshCw, Sparkles, TriangleAlert } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { rankTrackCandidates, type TrackIntelligence, type TrackSuggestion } from '../ai/trackScoring'
 import { getTrackProfile, type TrackProfile } from '../storage/trackProfiles'
 import { useGainAssistStore } from '../state/gainAssistStore'
@@ -53,12 +53,14 @@ export function AiAssistantPanel() {
   const [isScoring, setIsScoring] = useState(false)
   const [refreshToken, setRefreshToken] = useState(0)
 
-  const referenceDeckId = useMemo<DeckId | null>(() => {
-    if (masterDeck && decks[masterDeck].trackId) return masterDeck
-    const playing = (['A', 'B'] as DeckId[]).find((deckId) => decks[deckId].isPlaying && decks[deckId].trackId)
-    if (playing) return playing
-    return (['A', 'B'] as DeckId[]).find((deckId) => decks[deckId].trackId) ?? null
-  }, [decks.A.isPlaying, decks.A.trackId, decks.B.isPlaying, decks.B.trackId, masterDeck])
+  let referenceDeckId: DeckId | null = null
+  if (masterDeck && decks[masterDeck].trackId) referenceDeckId = masterDeck
+  if (!referenceDeckId) {
+    referenceDeckId = (['A', 'B'] as DeckId[]).find((deckId) => decks[deckId].isPlaying && decks[deckId].trackId) ?? null
+  }
+  if (!referenceDeckId) {
+    referenceDeckId = (['A', 'B'] as DeckId[]).find((deckId) => decks[deckId].trackId) ?? null
+  }
 
   const targetDeckId: DeckId | null = referenceDeckId === 'A' ? 'B' : referenceDeckId === 'B' ? 'A' : null
   const referenceDeck = referenceDeckId ? decks[referenceDeckId] : null
