@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   beatDurationSeconds,
   beatPhase,
+  nextBeatContextTime,
   nudgePlaybackRate,
   phaseAlignedTime,
   phaseLabel,
@@ -24,6 +25,12 @@ describe('phase sync math', () => {
   it('aligns target time without seeking before zero', () => {
     expect(phaseAlignedTime(10.1, 120, 0, 20.2, 120, 0)).toBeCloseTo(10.2)
     expect(phaseAlignedTime(0.05, 120, 0, 0.45, 120, 0)).toBeCloseTo(0)
+  })
+
+  it('schedules a paused slave on the next audible master beat', () => {
+    expect(nextBeatContextTime(10.1, 120, 120, 0, 50)).toBeCloseTo(50.4)
+    expect(nextBeatContextTime(10.49, 120, 120, 0, 50, 0.04)).toBeCloseTo(50.51)
+    expect(nextBeatContextTime(10.1, 120, 126, 0, 50)).toBeCloseTo(50 + 0.4 * (120 / 126))
   })
 
   it('quantizes to beat subdivisions', () => {

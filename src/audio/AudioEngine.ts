@@ -263,6 +263,11 @@ export class AudioEngine {
     return this.decks[deckId].transport.play()
   }
 
+  async playAt(deckId: DeckId, contextTime: number): Promise<boolean> {
+    await this.initialize()
+    return this.decks[deckId].transport.playAt(contextTime)
+  }
+
   pause(deckId: DeckId): void {
     this.decks[deckId].transport.pause()
   }
