@@ -9,10 +9,10 @@ export type TrackProfile = {
   bpm: number
   bpmConfidence: number
   bpmAnalysisStatus: PersistedBpmStatus
-  key: string
-  camelotKey: string
-  keyConfidence: number
-  keyAnalysisStatus: PersistedKeyStatus
+  key?: string
+  camelotKey?: string
+  keyConfidence?: number
+  keyAnalysisStatus?: PersistedKeyStatus
   beatOffsetSeconds: number
   barOffsetBeats: number
   waveform: number[]
@@ -22,14 +22,19 @@ export type TrackProfile = {
   updatedAt: number
 }
 
-type LegacyTrackProfile = Omit<TrackProfile, 'key' | 'camelotKey' | 'keyConfidence' | 'keyAnalysisStatus'> & Partial<Pick<TrackProfile, 'key' | 'camelotKey' | 'keyConfidence' | 'keyAnalysisStatus'>>
+type NormalizedTrackProfile = TrackProfile & {
+  key: string
+  camelotKey: string
+  keyConfidence: number
+  keyAnalysisStatus: PersistedKeyStatus
+}
 
 const DATABASE_NAME = 'webdj-studio'
 const DATABASE_VERSION = 1
 const PROFILE_STORE = 'trackProfiles'
-const memoryProfiles = new Map<string, TrackProfile>()
+const memoryProfiles = new Map<string, NormalizedTrackProfile>()
 
-const normalizeProfile = (profile: LegacyTrackProfile): TrackProfile => ({
+const normalizeProfile = (profile: TrackProfile): NormalizedTrackProfile => ({
   ...profile,
   key: profile.key ?? '',
   camelotKey: profile.camelotKey ?? '',
@@ -84,7 +89,7 @@ export async function getTrackProfile(id: string): Promise<TrackProfile | null> 
   return new Promise((resolve, reject) => {
     const transaction = database.transaction(PROFILE_STORE, 'readonly')
     const request = transaction.objectStore(PROFILE_STORE).get(id)
-    request.onsuccess = () => resolve(request.result ? normalizeProfile(request.result as LegacyTrackProfile) : null)
+    request.onsuccess = () => resolve(request.result ? normalizeProfile(request.result as TrackProfile) : null)
     request.onerror = () => reject(request.error ?? new Error('Unable to read WebDJ track profile'))
     transaction.oncomplete = () => database.close()
   })
