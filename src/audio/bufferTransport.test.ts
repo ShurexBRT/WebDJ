@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { clampTransportTime, isTransportEnded, reanchorTransportClock, transportPositionAt, type TransportClock } from './bufferTransport'
+import { clampTransportTime, isTransportEnded, loopedTransportPositionAt, reanchorTransportClock, transportPositionAt, type TransportClock } from './bufferTransport'
 
 const clock = (patch: Partial<TransportClock> = {}): TransportClock => ({
   offsetSeconds: 12,
@@ -25,6 +25,14 @@ describe('buffer transport clock', () => {
       playbackRate: 1.1,
     })
     expect(transportPositionAt(reanchored, 105)).toBeCloseTo(17.1, 8)
+  })
+
+  it('wraps an active loop without clamping the running clock to track duration', () => {
+    const loop = { startSeconds: 4, endSeconds: 6 }
+    const running = clock({ offsetSeconds: 4.5, anchorContextTime: 20, durationSeconds: 30 })
+    expect(loopedTransportPositionAt(running, 21, loop)).toBe(5.5)
+    expect(loopedTransportPositionAt(running, 22, loop)).toBe(4.5)
+    expect(loopedTransportPositionAt(running, 28.5, loop)).toBe(5)
   })
 
   it('clamps seeks and detects the end with a small audio epsilon', () => {
