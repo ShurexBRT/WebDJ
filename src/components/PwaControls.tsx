@@ -80,10 +80,10 @@ export function PwaControls() {
   if (!offline && !updateRegistration && (!installPrompt || installed)) return null
 
   return (
-    <div className="pwa-controls" aria-label="Application install and offline status">
+    <section className="pwa-controls" aria-label="Application install and offline status">
       {offline && <span className="pwa-offline"><WifiOff size={12} /> OFFLINE</span>}
       {installPrompt && !installed && <button type="button" aria-label="Install WebDJ" onClick={() => void install()}><Download size={12} /> INSTALL</button>}
       {updateRegistration && <button type="button" aria-label="Update WebDJ" onClick={applyUpdate}><RefreshCw size={12} /> UPDATE</button>}
-    </div>
+    </section>
   )
 }
