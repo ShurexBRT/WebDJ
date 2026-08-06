@@ -1,0 +1,115 @@
+.online-source-browser {
+  min-height: 100%;
+  display: grid;
+  align-content: start;
+  gap: 10px;
+}
+
+.online-source-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 10px;
+  border: 1px solid #28313a;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #12171d, #090c0f);
+}
+
+.online-source-header > div { display: grid; gap: 3px; }
+.online-source-header strong { color: #dbe5ec; font-size: 12px; letter-spacing: .08em; }
+.online-source-header span { color: #687683; font-size: 7px; letter-spacing: .14em; }
+.online-source-header p { max-width: 520px; margin: 0; color: #7c8792; font-size: 9px; line-height: 1.45; text-align: right; }
+
+.source-credential-row {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.source-credential-row label { display: grid; gap: 5px; }
+.source-credential-row label span { display: flex; align-items: center; gap: 5px; color: #8995a1; font-size: 8px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.source-credential-row input,
+.online-search-row input {
+  width: 100%;
+  min-height: 34px;
+  border: 1px solid #303944;
+  border-radius: 4px;
+  background: #07090c;
+  color: #e3eaf0;
+  padding: 0 10px;
+  font-size: 10px;
+}
+.source-credential-row small { color: #64717d; font-size: 8px; white-space: nowrap; }
+
+.online-search-row { display: grid; grid-template-columns: minmax(0, 1fr) 100px; gap: 7px; }
+.online-search-row label { min-height: 34px; display: flex; align-items: center; gap: 7px; padding: 0 9px; border: 1px solid #29323b; border-radius: 4px; background: #090c0f; color: #74818e; }
+.online-search-row label input { min-height: 30px; border: 0; padding: 0; background: transparent; }
+.online-search-row button {
+  border: 1px solid #28506a;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #172a37, #0d171f);
+  color: #88d7ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: .08em;
+  cursor: pointer;
+}
+.online-search-row button:disabled { opacity: .38; cursor: not-allowed; }
+.online-source-error { border: 1px solid #6d342f; border-radius: 4px; background: rgba(117, 45, 39, .15); color: #ff9b91; padding: 8px 10px; font-size: 9px; }
+
+.online-track-table { border: 1px solid #252d35; overflow: hidden; }
+.online-track-row {
+  min-height: 48px;
+  display: grid;
+  grid-template-columns: minmax(230px, 1.6fr) minmax(80px, .6fr) 52px 52px 52px 112px;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 9px;
+  border-bottom: 1px solid #1d242b;
+  color: #9da8b2;
+  font-size: 9px;
+}
+.online-track-row:last-child { border-bottom: 0; }
+.online-track-head { min-height: 26px; color: #66727e; font-size: 7px; font-weight: 900; letter-spacing: .09em; background: #090c0f; }
+.online-track-identity { min-width: 0; display: grid; grid-template-columns: 38px minmax(0, 1fr); gap: 8px; align-items: center; }
+.online-track-identity img,
+.online-art-placeholder { width: 38px; height: 38px; border-radius: 3px; object-fit: cover; background: linear-gradient(135deg, #18242d, #080b0e); }
+.online-track-identity div { min-width: 0; display: grid; gap: 3px; }
+.online-track-identity strong,
+.online-track-identity span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.online-track-identity strong { color: #e3e9ee; font-size: 10px; }
+.online-track-identity span { color: #6f7b86; font-size: 8px; }
+.online-load-actions { display: flex; justify-content: flex-end; gap: 4px; }
+.online-load-actions button,
+.online-load-actions a {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #303a44;
+  border-radius: 3px;
+  background: #10151a;
+  color: #abb6c0;
+  text-decoration: none;
+  cursor: pointer;
+  font-size: 9px;
+  font-weight: 900;
+}
+.online-load-actions button:first-child { border-color: #23516d; color: #6ed1ff; }
+.online-load-actions button:nth-child(2) { border-color: #65421e; color: #ffb766; }
+.online-load-actions button:disabled { opacity: .32; cursor: not-allowed; }
+.spin { animation: online-source-spin .8s linear infinite; }
+@keyframes online-source-spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 1280px) {
+  .source-credential-row { grid-template-columns: 1fr; }
+  .source-credential-row small { white-space: normal; }
+  .online-track-row { grid-template-columns: minmax(190px, 1.4fr) 70px 44px 44px 48px 105px; }
+}
