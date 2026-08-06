@@ -14,9 +14,10 @@ describe('FX parameter helpers', () => {
     expect(filterFrequencyFromPosition(1)).toBeCloseTo(20_000)
   })
 
-  it('converts and clamps delay time', () => {
+  it('converts and clamps delay time for beat-synchronised echoes', () => {
     expect(delaySecondsFromMs(500)).toBe(0.5)
-    expect(delaySecondsFromMs(10)).toBe(0.05)
-    expect(delaySecondsFromMs(5000)).toBe(1.5)
+    expect(delaySecondsFromMs(10)).toBe(0.025)
+    expect(delaySecondsFromMs(5000)).toBe(4)
+    expect(delaySecondsFromMs(5000, 2)).toBe(2)
   })
 })
