@@ -243,7 +243,7 @@ export const useMixerStore = create<MixerState>((set) => ({
   setDeckTime: (deckId, currentTime, duration) => set((state) => ({
     decks: { ...state.decks, [deckId]: { ...state.decks[deckId], currentTime, duration: duration ?? state.decks[deckId].duration } },
   })),
-  setDeckEq: (deckId, band, value) => set((state) => ({ decks: { ...state.decks, [deckId]: { ...state.decks[deckId], [band]: value } })),
+  setDeckEq: (deckId, band, value) => set((state) => ({ decks: { ...state.decks, [deckId]: { ...state.decks[deckId], [band]: value } } })),
   setDeckFilter: (deckId, filter) => set((state) => ({ decks: { ...state.decks, [deckId]: { ...state.decks[deckId], filter } } })),
   setDeckEcho: (deckId, patch) => set((state) => ({ decks: { ...state.decks, [deckId]: { ...state.decks[deckId], ...patch } } })),
   setDeckReverb: (deckId, patch) => set((state) => ({ decks: { ...state.decks, [deckId]: { ...state.decks[deckId], ...patch } } })),
