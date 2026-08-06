@@ -68,7 +68,11 @@ describe('online music adapters', () => {
   })
 
   it('converts source responses to safe in-memory audio files', async () => {
-    const loaded = await responseToTrackFile(new Response(new Blob(['audio'], { type: 'audio/ogg' }), { status: 200 }), track)
+    const response = new Response('audio', {
+      status: 200,
+      headers: { 'content-type': 'audio/ogg' },
+    })
+    const loaded = await responseToTrackFile(response, track)
     expect(loaded.file.name).toBe('Artist One - AB Test.ogg')
     expect(loaded.file.type).toBe('audio/ogg')
     expect(extensionForAudioType('audio/flac')).toBe('flac')
