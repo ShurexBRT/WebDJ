@@ -7,6 +7,7 @@ import { RecorderPanel } from './components/RecorderPanel'
 import { StudioDock } from './components/StudioDock'
 import { Deck } from './features/deck/Deck'
 import { Mixer } from './features/mixer/Mixer'
+import { PwaStatus } from './pwa/PwaStatus'
 import { useSessionPersistence } from './storage/useSessionPersistence'
 import { useMixerStore } from './state/mixerStore'
 import { useRecorderStore } from './state/recorderStore'
@@ -47,6 +48,7 @@ function App() {
           <button className={quantizeEnabled ? 'active' : ''} type="button" aria-label="Quantize" aria-pressed={quantizeEnabled} onClick={() => setQuantizeEnabled(!quantizeEnabled)}><Magnet size={14} /> QNTZ</button>
           <button className={recorderStatus === 'recording' || recorderStatus === 'paused' ? 'recording' : ''} type="button" aria-label="Open mix recorder" onClick={() => scrollTo('recorder-panel')}>REC</button>
           <button type="button" onClick={() => scrollTo('audio-routing')}><Settings size={14} /> Settings</button>
+          <PwaStatus />
         </nav>
 
         <div className="studio-clock">{now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
