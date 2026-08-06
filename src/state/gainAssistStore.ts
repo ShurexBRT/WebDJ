@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { GainAnalysisResult } from '../audio/mastering'
+import type { TrackProfile } from '../storage/trackProfiles'
 import type { DeckId } from './mixerStore'
 
 type DeckGainAssistState = {
@@ -11,7 +12,8 @@ type GainAssistStore = {
   decks: Record<DeckId, DeckGainAssistState>
   setEnabled: (deckId: DeckId, enabled: boolean) => void
   setAnalysis: (deckId: DeckId, analysis: GainAnalysisResult | null) => void
-  resetDeck: (deckId: DeckId) => void
+  restoreProfile: (deckId: DeckId, profile: TrackProfile) => void
+  resetDeckAnalysis: (deckId: DeckId) => void
   reset: () => void
 }
 
@@ -26,6 +28,20 @@ export const useGainAssistStore = create<GainAssistStore>((set) => ({
   setAnalysis: (deckId, analysis) => set((state) => ({
     decks: { ...state.decks, [deckId]: { ...state.decks[deckId], analysis } },
   })),
-  resetDeck: (deckId) => set((state) => ({ decks: { ...state.decks, [deckId]: initialDeck() } })),
+  restoreProfile: (deckId, profile) => set((state) => {
+    const recommendedTrimDb = profile.gainRecommendationDb
+    const analysis = Number.isFinite(recommendedTrimDb)
+      ? {
+          recommendedTrimDb: recommendedTrimDb!,
+          rmsDb: profile.gainRmsDb ?? 0,
+          peakDb: profile.gainPeakDb ?? 0,
+          confidence: profile.gainConfidence ?? 0,
+        }
+      : null
+    return { decks: { ...state.decks, [deckId]: { ...state.decks[deckId], analysis } } }
+  }),
+  resetDeckAnalysis: (deckId) => set((state) => ({
+    decks: { ...state.decks, [deckId]: { ...state.decks[deckId], analysis: null } },
+  })),
   reset: () => set({ decks: initialState() }),
 }))
