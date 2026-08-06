@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { CornerDownLeft, Flag, Repeat2 } from 'lucide-react'
 import { getAudioEngine } from '../audio/AudioEngine'
 import { createLoopRange, LOOP_BEAT_OPTIONS, type LoopBeats } from '../audio/loop'
@@ -8,22 +8,22 @@ import { formatTime } from '../audio/transport'
 import { useMixerStore, type DeckId } from '../state/mixerStore'
 import './cueLoop.css'
 
+type LoopUiState = {
+  trackName: string | null
+  range: { start: number; end: number } | null
+}
+
 export function CueLoopControls({ deckId }: { deckId: DeckId }) {
   const deck = useMixerStore((state) => state.decks[deckId])
   const quantizeEnabled = useMixerStore((state) => state.quantizeEnabled)
   const setDeckTime = useMixerStore((state) => state.setDeckTime)
   const setDeckCuePoint = useMixerStore((state) => state.setDeckCuePoint)
   const setDeckLoopBeats = useMixerStore((state) => state.setDeckLoopBeats)
-  const [loopRange, setLoopRange] = useState<{ start: number; end: number } | null>(null)
-  const [loopEnabled, setLoopEnabled] = useState(false)
+  const [loopUi, setLoopUi] = useState<LoopUiState>({ trackName: deck.trackName, range: null })
   const engine = getAudioEngine()
   const bpm = effectiveBpm(deck.bpm, deck.pitchPercent)
-
-  useEffect(() => {
-    setLoopRange(null)
-    setLoopEnabled(false)
-    engine.setDeckLoop(deckId, null)
-  }, [deck.trackName, deckId, engine])
+  const loopRange = loopUi.trackName === deck.trackName ? loopUi.range : null
+  const loopEnabled = Boolean(loopRange)
 
   const quantizedPlayhead = () => quantizeEnabled
     ? quantizeTime(deck.currentTime, bpm, deck.beatOffsetSeconds)
@@ -35,20 +35,18 @@ export function CueLoopControls({ deckId }: { deckId: DeckId }) {
   }
 
   const applyLoopRange = (range: { start: number; end: number } | null) => {
-    setLoopRange(range)
-    setLoopEnabled(Boolean(range))
+    setLoopUi({ trackName: deck.trackName, range })
     engine.setDeckLoop(deckId, range)
   }
 
   const selectLoopSize = (beats: LoopBeats) => {
     setDeckLoopBeats(deckId, beats)
-    if (!loopEnabled || !loopRange) return
-    const nextRange = createLoopRange(loopRange.start, deck.duration, beats, bpm)
-    applyLoopRange(nextRange)
+    if (!loopRange) return
+    applyLoopRange(createLoopRange(loopRange.start, deck.duration, beats, bpm))
   }
 
   const toggleLoop = () => {
-    if (loopEnabled) {
+    if (loopRange) {
       applyLoopRange(null)
       return
     }
