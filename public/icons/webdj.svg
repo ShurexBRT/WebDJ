@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#101820"/>
+      <stop offset="1" stop-color="#020304"/>
+    </linearGradient>
+    <linearGradient id="ring" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#29b6ff"/>
+      <stop offset="1" stop-color="#ff921f"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="92" fill="url(#bg)"/>
+  <circle cx="150" cy="256" r="102" fill="#080b0e" stroke="#29b6ff" stroke-width="18"/>
+  <circle cx="150" cy="256" r="55" fill="#151b22" stroke="#d7e2e9" stroke-width="8"/>
+  <circle cx="150" cy="256" r="13" fill="#29b6ff"/>
+  <circle cx="362" cy="256" r="102" fill="#080b0e" stroke="#ff921f" stroke-width="18"/>
+  <circle cx="362" cy="256" r="55" fill="#151b22" stroke="#d7e2e9" stroke-width="8"/>
+  <circle cx="362" cy="256" r="13" fill="#ff921f"/>
+  <rect x="238" y="122" width="36" height="268" rx="12" fill="#11171c" stroke="#4a545f" stroke-width="8"/>
+  <rect x="247" y="170" width="18" height="122" rx="9" fill="url(#ring)"/>
+  <rect x="221" y="374" width="70" height="16" rx="8" fill="#dce5ea"/>
+</svg>
