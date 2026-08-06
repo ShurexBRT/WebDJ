@@ -139,8 +139,19 @@ async function autoDjTick(): Promise<void> {
     autoDj.setStatus('transitioning')
     return
   }
-  if (transition.status === 'preparing') {
-    autoDj.setStatus('preparing')
+  if (transition.status === 'preparing' && transition.plan) {
+    const target = useMixerStore.getState().decks[transition.plan.targetDeck]
+    if (
+      target.trackId === transition.plan.trackId
+      && target.bpm > 0
+      && target.duration > 0
+      && !target.isAnalyzing
+    ) {
+      useAutoTransitionStore.getState().markReady()
+      autoDj.setStatus('ready')
+    } else {
+      autoDj.setStatus('preparing')
+    }
     return
   }
 
