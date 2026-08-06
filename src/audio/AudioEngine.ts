@@ -43,6 +43,9 @@ type DeckChannel = {
 export class AudioEngine {
   readonly context: AudioContext
   private readonly masterGain: GainNode
+  private readonly masterInputAnalyser: AnalyserNode
+  private readonly masterInputMeterBuffer: Uint8Array<ArrayBuffer>
+  private readonly masterLimiter: DynamicsCompressorNode
   private readonly masterAnalyser: AnalyserNode
   private readonly masterMeterBuffer: Uint8Array<ArrayBuffer>
   private readonly masterDestination: MediaStreamAudioDestinationNode
@@ -60,6 +63,14 @@ export class AudioEngine {
     this.context = new AudioContext({ latencyHint: 'interactive' })
     this.masterGain = this.context.createGain()
     this.masterGain.gain.value = 0.9
+    this.masterInputAnalyser = this.createAnalyser()
+    this.masterInputMeterBuffer = new Uint8Array(new ArrayBuffer(this.masterInputAnalyser.fftSize))
+    this.masterLimiter = this.context.createDynamicsCompressor()
+    this.masterLimiter.threshold.value = -1
+    this.masterLimiter.knee.value = 0
+    this.masterLimiter.ratio.value = 20
+    this.masterLimiter.attack.value = 0.003
+    this.masterLimiter.release.value = 0.1
     this.masterAnalyser = this.createAnalyser()
     this.masterMeterBuffer = new Uint8Array(new ArrayBuffer(this.masterAnalyser.fftSize))
 
@@ -73,7 +84,9 @@ export class AudioEngine {
     this.masterOutput = this.createOutputElement(this.masterDestination.stream)
     this.cueOutput = this.createOutputElement(this.cueDestination.stream)
 
-    this.masterGain.connect(this.masterAnalyser)
+    this.masterGain.connect(this.masterInputAnalyser)
+    this.masterInputAnalyser.connect(this.masterLimiter)
+    this.masterLimiter.connect(this.masterAnalyser)
     this.masterAnalyser.connect(this.masterDestination)
     this.masterAnalyser.connect(this.masterMonitorGain)
     this.masterMonitorGain.connect(this.cueOutputGain)
@@ -131,7 +144,7 @@ export class AudioEngine {
     const filter = this.createEqBand('lowpass', 20_000, 0.7)
     const dryGain = this.context.createGain()
     const echoSend = this.context.createGain()
-    const echoDelay = this.context.createDelay(1.5)
+    const echoDelay = this.context.createDelay(4)
     const echoFeedback = this.context.createGain()
     const reverbSend = this.context.createGain()
     const reverb = this.context.createConvolver()
@@ -339,6 +352,14 @@ export class AudioEngine {
   getDeckLevel(deckId: DeckId): number {
     const deck = this.decks[deckId]
     return readAnalyserLevel(deck.analyser, deck.meterBuffer)
+  }
+
+  getMasterPreLimiterLevel(): number {
+    return readAnalyserLevel(this.masterInputAnalyser, this.masterInputMeterBuffer)
+  }
+
+  getMasterLimiterReduction(): number {
+    return Math.max(0, -(this.masterLimiter.reduction ?? 0))
   }
 
   getMasterLevel(): number {

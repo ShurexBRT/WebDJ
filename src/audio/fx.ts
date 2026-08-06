@@ -13,9 +13,9 @@ export function filterFrequencyFromPosition(position: number): number {
   return 20 + (20_000 - 20) * Math.pow(safe, 2)
 }
 
-export function delaySecondsFromMs(milliseconds: number): number {
+export function delaySecondsFromMs(milliseconds: number, maxSeconds = 4): number {
   if (!Number.isFinite(milliseconds)) return 0.25
-  return Math.min(1.5, Math.max(0.05, milliseconds / 1000))
+  return Math.min(maxSeconds, Math.max(0.025, milliseconds / 1000))
 }
 
 export function feedbackGain(value: number): number {

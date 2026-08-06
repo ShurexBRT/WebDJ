@@ -1,16 +1,46 @@
+import { useEffect } from 'react'
 import { Waves } from 'lucide-react'
+import { echoDelayMsFromBpm, ECHO_BEAT_DIVISIONS, formatEchoDivision, type EchoBeatDivision } from '../audio/beatFx'
 import { getAudioEngine } from '../audio/AudioEngine'
+import { effectiveBpm } from '../audio/tempo'
+import { useFxTimingStore } from '../state/fxTimingStore'
 import { useMixerStore, type DeckId } from '../state/mixerStore'
 import { KnobControl } from './KnobControl'
 import './effects.css'
 
 export function EffectsPanel({ deckId }: { deckId: DeckId }) {
   const deck = useMixerStore((state) => state.decks[deckId])
+  const timing = useFxTimingStore((state) => state.decks[deckId])
+  const setTimingMode = useFxTimingStore((state) => state.setMode)
+  const setDivision = useFxTimingStore((state) => state.setDivision)
   const setFilter = useMixerStore((state) => state.setDeckFilter)
   const setEcho = useMixerStore((state) => state.setDeckEcho)
   const setReverb = useMixerStore((state) => state.setDeckReverb)
   const engine = getAudioEngine()
   const accent = deckId === 'A' ? '#25b6ff' : '#ff921f'
+  const bpm = effectiveBpm(deck.bpm, deck.pitchPercent)
+  const syncedDelayMs = echoDelayMsFromBpm(bpm, timing.division)
+
+  useEffect(() => {
+    if (timing.mode !== 'sync' || syncedDelayMs === null || deck.echoTimeMs === syncedDelayMs) return
+    setEcho(deckId, { echoTimeMs: syncedDelayMs })
+    engine.setDeckEcho(deckId, {
+      enabled: deck.echoEnabled,
+      mix: deck.echoMix,
+      timeMs: syncedDelayMs,
+      feedback: deck.echoFeedback,
+    })
+  }, [
+    deck.echoEnabled,
+    deck.echoFeedback,
+    deck.echoMix,
+    deck.echoTimeMs,
+    deckId,
+    engine,
+    setEcho,
+    syncedDelayMs,
+    timing.mode,
+  ])
 
   const applyEcho = (patch: Partial<Pick<typeof deck, 'echoEnabled' | 'echoMix' | 'echoTimeMs' | 'echoFeedback'>>) => {
     const next = { ...deck, ...patch }
@@ -29,6 +59,12 @@ export function EffectsPanel({ deckId }: { deckId: DeckId }) {
     engine.setDeckReverb(deckId, { enabled: next.reverbEnabled, mix: next.reverbMix })
   }
 
+  const changeDivision = (division: EchoBeatDivision) => {
+    setDivision(deckId, division)
+    const nextDelay = echoDelayMsFromBpm(bpm, division)
+    if (timing.mode === 'sync' && nextDelay !== null) applyEcho({ echoTimeMs: nextDelay })
+  }
+
   return (
     <section id={`effects-deck-${deckId}`} className={`effects-panel effects-panel-${deckId.toLowerCase()}`} aria-label={`Effects deck ${deckId}`}>
       <div className="effects-title"><Waves size={14} /> FX UNIT</div>
@@ -36,7 +72,13 @@ export function EffectsPanel({ deckId }: { deckId: DeckId }) {
       <div className="fx-display" aria-label={`FX status deck ${deckId}`}>
         <span>DECK {deckId} · FX1</span>
         <strong>{deck.echoEnabled ? 'ECHO' : deck.reverbEnabled ? 'REVERB' : 'BYPASS'}</strong>
-        <small>{deck.echoEnabled ? `${deck.echoTimeMs} ms · ${Math.round(deck.echoMix * 100)}% wet` : deck.reverbEnabled ? `${Math.round(deck.reverbMix * 100)}% wet` : 'Select an effect'}</small>
+        <small>
+          {deck.echoEnabled
+            ? `${timing.mode === 'sync' ? formatEchoDivision(timing.division) : `${deck.echoTimeMs} ms`} · ${Math.round(deck.echoMix * 100)}% wet`
+            : deck.reverbEnabled
+              ? `${Math.round(deck.reverbMix * 100)}% wet`
+              : 'Select an effect'}
+        </small>
       </div>
 
       <div className="fx-knob-row fx-filter-row">
@@ -56,9 +98,16 @@ export function EffectsPanel({ deckId }: { deckId: DeckId }) {
 
       <div className="fx-module">
         <button className={`effect-toggle${deck.echoEnabled ? ' active' : ''}`} aria-label={`Echo deck ${deckId}`} aria-pressed={deck.echoEnabled} onClick={() => applyEcho({ echoEnabled: !deck.echoEnabled })}>ECHO</button>
+        <div className="echo-timing-mode" aria-label={`Echo timing mode deck ${deckId}`}>
+          <button type="button" className={timing.mode === 'sync' ? 'active' : ''} aria-label={`Sync echo deck ${deckId}`} aria-pressed={timing.mode === 'sync'} onClick={() => setTimingMode(deckId, 'sync')}>SYNC</button>
+          <button type="button" className={timing.mode === 'free' ? 'active' : ''} aria-label={`Free echo deck ${deckId}`} aria-pressed={timing.mode === 'free'} onClick={() => setTimingMode(deckId, 'free')}>FREE</button>
+          <select aria-label={`Echo beat division deck ${deckId}`} value={timing.division} disabled={timing.mode !== 'sync' || bpm <= 0} onChange={(event) => changeDivision(event.target.value as EchoBeatDivision)}>
+            {ECHO_BEAT_DIVISIONS.map((division) => <option key={division} value={division}>{division}</option>)}
+          </select>
+        </div>
         <div className="fx-knob-row">
           <KnobControl label="WET" ariaLabel={`Echo mix deck ${deckId}`} value={deck.echoMix} min={0} max={1} step={0.01} accent={accent} valueLabel={`${Math.round(deck.echoMix * 100)}%`} onChange={(value) => applyEcho({ echoMix: value })} />
-          <KnobControl label="TIME" ariaLabel={`Echo time deck ${deckId}`} value={deck.echoTimeMs} min={50} max={1500} step={25} accent={accent} valueLabel={`${deck.echoTimeMs}ms`} onChange={(value) => applyEcho({ echoTimeMs: value })} />
+          <KnobControl label="TIME" ariaLabel={`Echo time deck ${deckId}`} value={deck.echoTimeMs} min={25} max={3900} step={25} accent={accent} disabled={timing.mode === 'sync'} valueLabel={timing.mode === 'sync' ? timing.division : `${deck.echoTimeMs}ms`} onChange={(value) => applyEcho({ echoTimeMs: value })} />
           <KnobControl label="FDBK" ariaLabel={`Echo feedback deck ${deckId}`} value={deck.echoFeedback} min={0} max={0.85} step={0.01} accent={accent} valueLabel={`${Math.round(deck.echoFeedback * 100)}%`} onChange={(value) => applyEcho({ echoFeedback: value })} />
         </div>
       </div>

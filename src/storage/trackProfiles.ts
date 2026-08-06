@@ -13,6 +13,10 @@ export type TrackProfile = {
   camelotKey?: string
   keyConfidence?: number
   keyAnalysisStatus?: PersistedKeyStatus
+  gainRecommendationDb?: number
+  gainRmsDb?: number
+  gainPeakDb?: number
+  gainConfidence?: number
   beatOffsetSeconds: number
   barOffsetBeats: number
   waveform: number[]
