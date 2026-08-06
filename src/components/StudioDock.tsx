@@ -6,6 +6,7 @@ import { AudioSettings } from '../features/settings/AudioSettings'
 import { useKeyStore } from '../state/keyStore'
 import { useLibraryStore } from '../state/libraryStore'
 import { useMixerStore, type DeckId } from '../state/mixerStore'
+import { ControllerSettings } from './ControllerSettings'
 import { KnobControl } from './KnobControl'
 import './library.css'
 
@@ -129,6 +130,7 @@ export function StudioDock() {
         </div>
         <label className="headphone-mix"><span><b>SPLIT</b><b>MIX</b></span><input aria-label="Dock cue master mix" type="range" min="0" max="1" step="0.01" value={cueMix} onChange={(event) => { const value = Number(event.target.value); setCueMix(value); engine.setCueMix(value) }} /></label>
         <AudioSettings />
+        <ControllerSettings />
       </section>
     </section>
   )

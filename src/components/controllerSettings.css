@@ -1,0 +1,27 @@
+.controller-settings {
+  display: grid;
+  gap: 8px;
+  margin: 10px 12px 12px;
+  padding: 9px;
+  border: 1px solid #29313a;
+  border-radius: 3px;
+  background: #080a0d;
+}
+.controller-heading { display: flex; align-items: center; justify-content: space-between; }
+.controller-heading span { display: flex; align-items: center; gap: 5px; color: #8d98a4; font-size: 7px; font-weight: 900; letter-spacing: .09em; }
+.controller-heading strong { color: #6dcf91; font-size: 7px; }
+.controller-settings details { border-top: 1px solid #20262d; padding-top: 6px; }
+.controller-settings summary { color: #78838f; font-size: 7px; font-weight: 900; cursor: pointer; }
+.shortcut-grid { display: grid; gap: 4px; margin-top: 6px; }
+.shortcut-grid > div { display: grid; grid-template-columns: 48px 1fr; align-items: center; gap: 6px; color: #7e8994; font-size: 7px; }
+.shortcut-grid kbd { display: inline-grid; place-items: center; min-height: 20px; border: 1px solid #39424d; border-radius: 2px; background: #12161b; color: #dce3e8; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.midi-connect-row { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 7px; }
+.midi-connect-row button, .midi-learn-row button { min-height: 28px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; border: 1px solid #30404e; border-radius: 2px; background: linear-gradient(180deg, #15212b, #0a1015); color: #9fd7f3; font-size: 7px; font-weight: 900; cursor: pointer; }
+.midi-connect-row span { overflow: hidden; color: #68737f; font-size: 7px; text-overflow: ellipsis; white-space: nowrap; }
+.midi-command-select { display: grid; gap: 4px; color: #707b86; font-size: 7px; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; }
+.midi-command-select select { width: 100%; padding: 6px 7px; font-size: 8px; }
+.midi-learn-row { display: grid; grid-template-columns: minmax(90px, 1fr) minmax(72px, auto) 30px; gap: 5px; align-items: center; }
+.midi-learn-row button.learning { color: #071108; border-color: #65dc8e; background: #65dc8e; }
+.midi-learn-row code { overflow: hidden; color: #8c97a3; font-size: 7px; text-overflow: ellipsis; white-space: nowrap; }
+.midi-learn-row button:last-child { padding: 0; }
+.controller-settings button:disabled { opacity: .35; cursor: not-allowed; }
