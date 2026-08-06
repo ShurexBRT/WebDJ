@@ -48,7 +48,10 @@ export function useMidiController() {
   }, [mappings])
 
   const handleMessage = useCallback((event: MIDIMessageEvent) => {
-    const signature = midiMessageSignature(event.data)
+    const data = event.data
+    if (!data) return
+
+    const signature = midiMessageSignature(data)
     if (!signature) return
 
     if (learningCommand) {
@@ -58,7 +61,7 @@ export function useMidiController() {
 
     const command = CONTROLLER_COMMANDS.find((candidate) => mappings[candidate] === signature)
     if (!command) return
-    const value = event.data[2] ?? 0
+    const value = data[2] ?? 0
     if (!continuousCommands.has(command) && value === 0) return
     void executeControllerCommand(command, value)
   }, [learningCommand, mapControl, mappings])
