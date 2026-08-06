@@ -9,6 +9,10 @@ const profile = (id: string): TrackProfile => ({
   bpm: 124.5,
   bpmConfidence: 0.83,
   bpmAnalysisStatus: 'detected',
+  key: 'A minor',
+  camelotKey: '8A',
+  keyConfidence: 0.72,
+  keyAnalysisStatus: 'detected',
   beatOffsetSeconds: 0.12,
   barOffsetBeats: 2,
   waveform: [0.2, 0.5, 0.8],
@@ -30,13 +34,17 @@ describe('track profile persistence', () => {
     expect(await fingerprintFile(first)).not.toBe(await fingerprintFile(changed))
   })
 
-  it('saves and retrieves a complete analysis profile', async () => {
+  it('saves and retrieves BPM key cues and loop analysis', async () => {
     await saveTrackProfile(profile('track-one'))
     const restored = await getTrackProfile('track-one')
 
     expect(restored).toMatchObject({
       id: 'track-one',
       bpm: 124.5,
+      key: 'A minor',
+      camelotKey: '8A',
+      keyConfidence: 0.72,
+      keyAnalysisStatus: 'detected',
       beatOffsetSeconds: 0.12,
       barOffsetBeats: 2,
       cuePoint: 4,
