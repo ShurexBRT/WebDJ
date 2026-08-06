@@ -8,9 +8,10 @@ describe('FX parameter helpers', () => {
     expect(feedbackGain(1)).toBe(0.85)
   })
 
-  it('maps filter center to open and sides to audible cutoffs', () => {
-    expect(filterFrequencyFromPosition(0)).toBe(20_000)
+  it('keeps the center HPF position open and maps both filter sides to audible cutoffs', () => {
+    expect(filterFrequencyFromPosition(0)).toBe(20)
     expect(filterFrequencyFromPosition(-1)).toBeCloseTo(80)
+    expect(filterFrequencyFromPosition(-0.001)).toBeGreaterThan(19_000)
     expect(filterFrequencyFromPosition(1)).toBeCloseTo(20_000)
   })
 
