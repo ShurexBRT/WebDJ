@@ -1,0 +1,20 @@
+{
+  "name": "WebDJ Studio",
+  "short_name": "WebDJ",
+  "description": "A browser-based two-deck DJ studio for local music mixing, analysis and recording.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#030405",
+  "theme_color": "#090b10",
+  "categories": ["music", "entertainment", "utilities"],
+  "icons": [
+    {
+      "src": "webdj-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
