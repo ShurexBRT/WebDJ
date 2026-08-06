@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { emptyDeckForTest } from '../test/fixtures/mixer'
+import { useMixerStore } from '../state/mixerStore'
 import { freeDeckFor, selectAutoDjReferenceDeck, shouldStartPreparedTransition, transitionDurationSeconds } from './autoDj'
 
 const plan = {
@@ -14,9 +14,10 @@ const plan = {
 
 describe('AutoDJ decisions', () => {
   it('prefers a playing master and otherwise uses the playing loaded deck', () => {
+    const empty = useMixerStore.getState().decks
     const decks = {
-      A: { ...emptyDeckForTest(), trackId: 'a', isPlaying: true },
-      B: { ...emptyDeckForTest(), trackId: 'b', isPlaying: true },
+      A: { ...empty.A, trackId: 'a', isPlaying: true },
+      B: { ...empty.B, trackId: 'b', isPlaying: true },
     }
     expect(selectAutoDjReferenceDeck('B', decks)).toBe('B')
     expect(selectAutoDjReferenceDeck(null, decks)).toBe('A')
