@@ -12,10 +12,12 @@ import { HotCueControls } from '../../components/HotCueControls'
 import { KeyControls } from '../../components/KeyControls'
 import { TempoControls } from '../../components/TempoControls'
 import { Waveform } from '../../components/Waveform'
-import { fingerprintFile, getTrackProfile } from '../../storage/trackProfiles'
+import { isTrackProfileAnalysisComplete } from '../../library/libraryAnalysis'
+import { fingerprintFile, getTrackProfile, type TrackProfile } from '../../storage/trackProfiles'
 import { useTrackProfilePersistence } from '../../storage/useTrackProfilePersistence'
 import { useGainAssistStore } from '../../state/gainAssistStore'
 import { useKeyStore } from '../../state/keyStore'
+import { useLibraryAnalysisStore } from '../../state/libraryAnalysisStore'
 import { useLibraryStore } from '../../state/libraryStore'
 import { useMixerStore, type DeckId } from '../../state/mixerStore'
 import { JogWheel } from './JogWheel'
@@ -32,6 +34,8 @@ export function Deck({ side }: { side: DeckId }) {
   const setGainAnalysis = useGainAssistStore((state) => state.setAnalysis)
   const restoreGainProfile = useGainAssistStore((state) => state.restoreProfile)
   const resetGainAnalysis = useGainAssistStore((state) => state.resetDeckAnalysis)
+  const analysisRevision = useLibraryAnalysisStore((state) => state.revision)
+  const lastUpdatedTrackId = useLibraryAnalysisStore((state) => state.lastUpdatedTrackId)
   const otherSide: DeckId = side === 'A' ? 'B' : 'A'
   const otherDeck = useMixerStore((state) => state.decks[otherSide])
   const masterDeck = useMixerStore((state) => state.masterDeck)
@@ -126,6 +130,18 @@ export function Deck({ side }: { side: DeckId }) {
 
   const toggleMaster = () => setMasterDeck(isMaster ? null : side)
 
+  const restoreCachedAnalysis = useCallback((profile: TrackProfile) => {
+    restoreDeckProfile(side, profile)
+    restoreKeyProfile(side, profile)
+    restoreGainProfile(side, profile)
+    if (gainAssist.enabled && Number.isFinite(profile.gainRecommendationDb)) {
+      const trim = profile.gainRecommendationDb!
+      setDeckTrim(side, trim)
+      engine.setDeckTrim(side, trim)
+    }
+    setDeckAnalysis(side, false)
+  }, [engine, gainAssist.enabled, restoreDeckProfile, restoreGainProfile, restoreKeyProfile, setDeckAnalysis, setDeckTrim, side])
+
   const applyAnalysis = (
     analysis: TrackAnalysisResult,
     includeWaveformAndBpm = true,
@@ -152,7 +168,7 @@ export function Deck({ side }: { side: DeckId }) {
     setDeckAnalysis(side, false)
   }
 
-  const handleFile = async (file?: File) => {
+  const handleFile = async (file?: File | null, knownLibraryTrackId?: string) => {
     if (!file) return
     loadTrack(side, file.name)
     resetDeckKey(side)
@@ -167,12 +183,17 @@ export function Deck({ side }: { side: DeckId }) {
     engine.setDeckEcho(side, { enabled: deck.echoEnabled, mix: deck.echoMix, timeMs: deck.echoTimeMs, feedback: deck.echoFeedback })
     engine.setDeckReverb(side, { enabled: deck.reverbEnabled, mix: deck.reverbMix })
 
-    const profilePromise = fingerprintFile(file)
-      .then(async (trackId) => {
-        setDeckIdentity(side, trackId, file.size, file.lastModified)
-        return getTrackProfile(trackId)
-      })
-      .catch(() => null)
+    const profilePromise = knownLibraryTrackId
+      ? Promise.resolve(knownLibraryTrackId).then(async (trackId) => {
+          setDeckIdentity(side, trackId, file.size, file.lastModified)
+          return getTrackProfile(trackId)
+        })
+      : fingerprintFile(file)
+          .then(async (trackId) => {
+            setDeckIdentity(side, trackId, file.size, file.lastModified)
+            return getTrackProfile(trackId)
+          })
+          .catch(() => null)
 
     try {
       await engine.loadFile(side, file, {
@@ -185,20 +206,25 @@ export function Deck({ side }: { side: DeckId }) {
 
       const cachedProfile = await profilePromise
       if (cachedProfile) {
-        restoreDeckProfile(side, cachedProfile)
-        restoreKeyProfile(side, cachedProfile)
-        restoreGainProfile(side, cachedProfile)
+        restoreCachedAnalysis(cachedProfile)
+        if (isTrackProfileAnalysisComplete(cachedProfile)) return
+      }
+
+      // A track loaded from the Library is already owned by the background analysis
+      // queue. Do not immediately decode and analyze the same MP3 a second time on
+      // the UI thread. Audio transport is ready now; cached analysis will hydrate
+      // this deck when the queue finishes.
+      if (knownLibraryTrackId) {
+        setDeckAnalysis(side, false)
+        return
+      }
+
+      // Direct deck-file loading is still supported. Yield once before the legacy
+      // analysis path so the freshly loaded transport can paint and accept input.
+      await new Promise<void>((resolve) => window.setTimeout(resolve, 0))
+      if (cachedProfile) {
         const keyCached = (cachedProfile.keyAnalysisStatus ?? 'idle') !== 'idle'
         const gainCached = Number.isFinite(cachedProfile.gainRecommendationDb)
-        if (keyCached && gainCached) {
-          if (gainAssist.enabled && Number.isFinite(cachedProfile.gainRecommendationDb)) {
-            const trim = cachedProfile.gainRecommendationDb!
-            setDeckTrim(side, trim)
-            engine.setDeckTrim(side, trim)
-          }
-          return
-        }
-
         setDeckAnalysis(side, true)
         if (!keyCached) setKeyAnalysis(side, 'analyzing', '', '', 0)
         applyAnalysis(await analyzeTrackFile(file, engine.context), false, !keyCached, !gainCached)
@@ -221,10 +247,19 @@ export function Deck({ side }: { side: DeckId }) {
   })
 
   useEffect(() => {
-    if (!libraryRequest) return
-    void handleFileRef.current(libraryRequest.track.file)
+    if (!libraryRequest?.track.file) return
+    void handleFileRef.current(libraryRequest.track.file, libraryRequest.track.id)
     consumeLibraryRequest(side, libraryRequest.requestId)
   }, [consumeLibraryRequest, libraryRequest, side])
+
+  useEffect(() => {
+    if (!deck.trackId || deck.trackId !== lastUpdatedTrackId) return
+    let cancelled = false
+    void getTrackProfile(deck.trackId).then((profile) => {
+      if (!cancelled && profile && isTrackProfileAnalysisComplete(profile)) restoreCachedAnalysis(profile)
+    })
+    return () => { cancelled = true }
+  }, [analysisRevision, deck.trackId, lastUpdatedTrackId, restoreCachedAnalysis])
 
   const togglePlayback = useCallback(async () => {
     if (!deck.trackName) return
@@ -233,9 +268,13 @@ export function Deck({ side }: { side: DeckId }) {
       setPlaying(side, false)
       return
     }
-    const started = await engine.play(side)
-    if (started) setPlaying(side, true)
-  }, [deck.isPlaying, deck.trackName, engine, setPlaying, side])
+    try {
+      const started = await engine.play(side)
+      if (started) setPlaying(side, true)
+    } catch (error) {
+      setDeckAnalysis(side, false, error instanceof Error ? error.message : 'Playback could not start')
+    }
+  }, [deck.isPlaying, deck.trackName, engine, setDeckAnalysis, setPlaying, side])
 
   const scrubWithJog = useCallback((time: number) => {
     engine.seek(side, time)
