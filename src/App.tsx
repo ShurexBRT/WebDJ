@@ -11,6 +11,7 @@ import { StudioDock } from './components/StudioDock'
 import { useKeyboardControls } from './controllers/useKeyboardControls'
 import { Deck } from './features/deck/Deck'
 import { Mixer } from './features/mixer/Mixer'
+import { LibraryAnalysisController } from './library/LibraryAnalysisController'
 import { useSessionPersistence } from './storage/useSessionPersistence'
 import { useMixerStore } from './state/mixerStore'
 import { useRecorderStore } from './state/recorderStore'
@@ -40,6 +41,7 @@ function App() {
 
   return (
     <main className="app-shell">
+      <LibraryAnalysisController />
       <AutoDjController />
       <header className="studio-header">
         <div className="studio-brand">
