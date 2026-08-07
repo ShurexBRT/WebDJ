@@ -1,9 +1,15 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { OnlineTrack } from '../online/types'
+import { serializeLibraryTrack } from '../storage/libraryManifest'
 import { useLibraryStore } from './libraryStore'
 
 describe('library store', () => {
-  beforeEach(() => useLibraryStore.setState({ tracks: [], isImporting: false, deckRequests: { A: null, B: null } }))
+  beforeEach(() => useLibraryStore.setState({
+    tracks: [],
+    isImporting: false,
+    manifestHydrated: false,
+    deckRequests: { A: null, B: null },
+  }))
 
   it('imports audio files, ignores non-audio files and deduplicates content', async () => {
     const first = new File(['audio'], 'Artist - First.mp3', { type: 'audio/mpeg' })
@@ -60,5 +66,32 @@ describe('library store', () => {
 
     useLibraryStore.getState().consumeDeckRequest('B', request!.requestId)
     expect(useLibraryStore.getState().deckRequests.B).toBeNull()
+  })
+
+  it('restores saved library rows as disconnected placeholders and reconnects them by fingerprint', async () => {
+    const originalFile = new File(['same audio bytes'], 'Artist - Saved.mp3', { type: 'audio/mpeg', lastModified: 123 })
+    await useLibraryStore.getState().addFiles([originalFile])
+    const originalTrack = useLibraryStore.getState().tracks[0]
+    const manifest = [serializeLibraryTrack(originalTrack)]
+
+    useLibraryStore.setState({ tracks: [], manifestHydrated: false, deckRequests: { A: null, B: null } })
+    useLibraryStore.getState().hydrateManifest(manifest)
+
+    const restored = useLibraryStore.getState().tracks[0]
+    expect(restored.id).toBe(originalTrack.id)
+    expect(restored.file).toBeNull()
+    expect(useLibraryStore.getState().manifestHydrated).toBe(true)
+
+    useLibraryStore.getState().requestDeckLoad('A', restored.id)
+    expect(useLibraryStore.getState().deckRequests.A).toBeNull()
+
+    const rescannedFile = new File(['same audio bytes'], 'Artist - Saved.mp3', { type: 'audio/mpeg', lastModified: 456 })
+    await useLibraryStore.getState().addFiles([rescannedFile])
+
+    const reconnected = useLibraryStore.getState().tracks[0]
+    expect(reconnected.id).toBe(originalTrack.id)
+    expect(reconnected.file).toBe(rescannedFile)
+    useLibraryStore.getState().requestDeckLoad('A', reconnected.id)
+    expect(useLibraryStore.getState().deckRequests.A?.track.id).toBe(reconnected.id)
   })
 })
