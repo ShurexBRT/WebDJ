@@ -106,7 +106,15 @@ function recencyPenalty(lastLoadedAt: number | null, now: number): number {
   return 0
 }
 
-function chooseTransition(breakdown: ScoreBreakdown, profileId: AutoDjMixProfileId): AutoDjTransitionStrategy {
+function chooseTransition(
+  breakdown: ScoreBreakdown,
+  profileId: AutoDjMixProfileId,
+  analysisConfidence: number,
+): AutoDjTransitionStrategy {
+  // A doubtful BPM estimate should not trigger the most abrupt transition.
+  // Echo-out is a safer mask while the analysis confidence is low.
+  if (analysisConfidence < 0.55 && breakdown.tempo < 45) return 'echo-out'
+
   if (profileId === 'club') {
     if (breakdown.tempo >= 75 && breakdown.energy >= 65) return 'bass-swap'
     if (breakdown.tempo >= 60 && breakdown.harmonic >= 45) return 'filter-blend'
@@ -204,7 +212,7 @@ export function scoreTrackCandidate(
     trackId: candidate.id,
     score: Math.round(clamp100(weighted)),
     confidence: Math.round(clamp100(candidate.analysisConfidence * 100)),
-    transition: chooseTransition(breakdown, profileId),
+    transition: chooseTransition(breakdown, profileId, candidate.analysisConfidence),
     reasons: reasons.slice(0, 3),
     warnings: warnings.slice(0, 3),
     breakdown,
