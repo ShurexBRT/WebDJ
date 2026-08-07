@@ -26,14 +26,17 @@ async function forcePreparedDeckBpm(page: import('@playwright/test').Page, panel
   }).toPass({ timeout: 15_000, intervals: [250, 500, 1_000] })
 }
 
-async function getMasterDeck(page: import('@playwright/test').Page): Promise<'A' | 'B'> {
+async function getReferenceDeck(page: import('@playwright/test').Page): Promise<'A' | 'B'> {
   const deckAMaster = await page.getByLabel('Make deck A master').getAttribute('aria-pressed')
   if (deckAMaster === 'true') return 'A'
 
   const deckBMaster = await page.getByLabel('Make deck B master').getAttribute('aria-pressed')
   if (deckBMaster === 'true') return 'B'
 
-  throw new Error('Expected one deck to be the active MASTER')
+  if (await page.getByRole('button', { name: 'Pause deck A', exact: true }).isVisible()) return 'A'
+  if (await page.getByRole('button', { name: 'Pause deck B', exact: true }).isVisible()) return 'B'
+
+  throw new Error('Expected a MASTER or currently playing reference deck')
 }
 
 test('selects, prepares and continuously executes the next mix', async ({ page }) => {
@@ -92,16 +95,18 @@ test('survives five consecutive accelerated Full AutoDJ cycles', async ({ page }
     await expect(panel).toContainText('NEXT TRACK', { timeout: 10_000 })
     await forcePreparedDeckBpm(page, panel)
 
-    const masterDeck = await getMasterDeck(page)
-    await page.getByLabel(`Seek deck ${masterDeck}`, { exact: true }).fill('7')
+    const referenceDeck = await getReferenceDeck(page)
+    await page.getByLabel(`Seek deck ${referenceDeck}`, { exact: true }).fill('7')
 
     await expect(panel).toContainText('MIXING', { timeout: 5_000 })
     await expect(page.getByLabel('Completed AutoDJ mixes')).toContainText(String(mixNumber), {
       timeout: 12_000,
     })
 
-    const nextMasterDeck = await getMasterDeck(page)
-    expect(nextMasterDeck).not.toBe(masterDeck)
+    await expect(async () => {
+      const nextReferenceDeck = await getReferenceDeck(page)
+      expect(nextReferenceDeck).not.toBe(referenceDeck)
+    }).toPass({ timeout: 5_000, intervals: [100, 250, 500] })
   }
 
   await expect(page.getByRole('button', { name: 'Take over from Full AutoDJ' })).toBeVisible()
