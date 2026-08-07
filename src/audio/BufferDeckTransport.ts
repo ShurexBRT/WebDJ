@@ -1,3 +1,4 @@
+import { SoundTouchNode } from '@soundtouchjs/audio-worklet'
 import soundTouchProcessorUrl from '@soundtouchjs/audio-worklet/processor?url'
 import { clampTransportTime, loopedTransportPositionAt, type TransportClock, type TransportLoopRange } from './bufferTransport'
 import { SlipTimeline } from './slipTimeline'
@@ -27,35 +28,14 @@ const defaultScheduler: AnimationFrameScheduler = {
   cancel: (id) => window.cancelAnimationFrame(id),
 }
 
+const SoundTouchConstructor = SoundTouchNode as unknown as SoundTouchNodeConstructor
 const registrationByContext = new WeakMap<AudioContext, Promise<void>>()
-let soundTouchConstructor: SoundTouchNodeConstructor | null = null
-let soundTouchConstructorPromise: Promise<SoundTouchNodeConstructor> | null = null
-
-async function loadSoundTouchConstructor(): Promise<SoundTouchNodeConstructor> {
-  if (soundTouchConstructor) return soundTouchConstructor
-  if (soundTouchConstructorPromise) return soundTouchConstructorPromise
-
-  const pending = import('@soundtouchjs/audio-worklet')
-    .then(({ SoundTouchNode }) => {
-      const constructor = SoundTouchNode as unknown as SoundTouchNodeConstructor
-      soundTouchConstructor = constructor
-      return constructor
-    })
-    .catch((error): never => {
-      soundTouchConstructorPromise = null
-      throw error
-    })
-
-  soundTouchConstructorPromise = pending
-  return pending
-}
 
 async function registerSoundTouch(context: AudioContext): Promise<void> {
   const existing = registrationByContext.get(context)
   if (existing) return existing
 
-  const registration = loadSoundTouchConstructor()
-    .then((Constructor) => Constructor.register(context, soundTouchProcessorUrl))
+  const registration = SoundTouchConstructor.register(context, soundTouchProcessorUrl)
   registrationByContext.set(context, registration)
   try {
     await registration
@@ -288,14 +268,12 @@ export class BufferDeckTransport {
 
   private startSource(offsetSeconds: number, startContextTime = this.context.currentTime): void {
     if (!this.buffer) return
-    const Constructor = soundTouchConstructor
-    if (!Constructor) throw new Error('SoundTouch worklet is not registered')
 
     this.stopCurrentSource()
 
     const generation = ++this.sourceGeneration
     const source = this.context.createBufferSource()
-    const processor = new Constructor({ context: this.context })
+    const processor = new SoundTouchConstructor({ context: this.context })
     const rate = this.clock.playbackRate
 
     source.buffer = this.buffer
