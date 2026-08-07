@@ -18,6 +18,24 @@ async function createAutoDjSession(page: import('@playwright/test').Page) {
   return panel
 }
 
+async function forcePreparedDeckBpm(page: import('@playwright/test').Page, panel: import('@playwright/test').Locator) {
+  await expect(async () => {
+    await page.getByLabel('BPM deck A', { exact: true }).fill('240')
+    await page.getByLabel('BPM deck B', { exact: true }).fill('240')
+    await expect(panel).toContainText('READY', { timeout: 1_000 })
+  }).toPass({ timeout: 15_000, intervals: [250, 500, 1_000] })
+}
+
+async function getMasterDeck(page: import('@playwright/test').Page): Promise<'A' | 'B'> {
+  const deckAMaster = await page.getByLabel('Make deck A master').getAttribute('aria-pressed')
+  if (deckAMaster === 'true') return 'A'
+
+  const deckBMaster = await page.getByLabel('Make deck B master').getAttribute('aria-pressed')
+  if (deckBMaster === 'true') return 'B'
+
+  throw new Error('Expected one deck to be the active MASTER')
+}
+
 test('selects, prepares and continuously executes the next mix', async ({ page }) => {
   const panel = await createAutoDjSession(page)
   await page.getByRole('button', { name: 'Enable Full AutoDJ' }).click()
@@ -45,4 +63,47 @@ test('takeover stops future automation without pausing the current manual deck',
   await expect(page.getByRole('button', { name: 'Enable Full AutoDJ' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Pause deck A', exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Play deck B', exact: true })).toBeVisible()
+})
+
+test('survives five consecutive accelerated Full AutoDJ cycles', async ({ page }) => {
+  test.setTimeout(120_000)
+  await page.goto('/')
+  const panel = page.getByRole('region', { name: 'Full AutoDJ control' })
+
+  await page.getByLabel('Add tracks to library').setInputFiles([
+    testWavFile('Soak DJ - Track 01.wav', 10, 220),
+    testWavFile('Soak DJ - Track 02.wav', 10, 247),
+    testWavFile('Soak DJ - Track 03.wav', 10, 277),
+    testWavFile('Soak DJ - Track 04.wav', 10, 311),
+    testWavFile('Soak DJ - Track 05.wav', 10, 349),
+    testWavFile('Soak DJ - Track 06.wav', 10, 392),
+    testWavFile('Soak DJ - Track 07.wav', 10, 440),
+    testWavFile('Soak DJ - Track 08.wav', 10, 494),
+  ])
+
+  await page.getByRole('button', { name: 'Load Track 01 to deck A', exact: true }).click()
+  await expect(page.getByTestId('deck-A')).toContainText('Soak DJ - Track 01.wav')
+  await page.getByLabel('BPM deck A', { exact: true }).fill('240')
+  await page.getByRole('button', { name: 'Play deck A', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Enable Full AutoDJ' })).toBeEnabled()
+  await page.getByRole('button', { name: 'Enable Full AutoDJ' }).click()
+
+  for (let mixNumber = 1; mixNumber <= 5; mixNumber += 1) {
+    await expect(panel).toContainText('Next Track', { timeout: 10_000 })
+    await forcePreparedDeckBpm(page, panel)
+
+    const masterDeck = await getMasterDeck(page)
+    await page.getByLabel(`Seek deck ${masterDeck}`, { exact: true }).fill('7')
+
+    await expect(panel).toContainText('MIXING', { timeout: 5_000 })
+    await expect(page.getByLabel('Completed AutoDJ mixes')).toContainText(String(mixNumber), {
+      timeout: 12_000,
+    })
+
+    const nextMasterDeck = await getMasterDeck(page)
+    expect(nextMasterDeck).not.toBe(masterDeck)
+  }
+
+  await expect(page.getByRole('button', { name: 'Take over from Full AutoDJ' })).toBeVisible()
+  await expect(panel).not.toContainText('ERROR')
 })
