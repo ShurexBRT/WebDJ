@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'webdj-shell-'
-const CACHE_VERSION = `${CACHE_PREFIX}v3`
+const CACHE_VERSION = `${CACHE_PREFIX}v4`
 const scopeUrl = new URL(self.registration.scope)
 const basePath = scopeUrl.pathname.endsWith('/') ? scopeUrl.pathname : `${scopeUrl.pathname}/`
 const shellAssets = [
@@ -33,6 +33,24 @@ const isCacheableShellRequest = (request, url) => {
   return ['document', 'script', 'style', 'font', 'image', 'manifest', 'worker'].includes(request.destination)
 }
 
+const putInShellCache = async (request, response) => {
+  if (!response.ok || response.type === 'opaque') return
+  const cache = await caches.open(CACHE_VERSION)
+  await cache.put(request, response.clone())
+}
+
+const networkFirst = async (request, fallbackRequest = request) => {
+  try {
+    const response = await fetch(request, { cache: 'no-store' })
+    void putInShellCache(fallbackRequest, response)
+    return response
+  } catch {
+    return await caches.match(fallbackRequest) ?? Response.error()
+  }
+}
+
+const isVersionedAsset = (url) => url.pathname.startsWith(`${basePath}assets/`)
+
 self.addEventListener('fetch', (event) => {
   const request = event.request
   const url = new URL(request.url)
@@ -40,37 +58,31 @@ self.addEventListener('fetch', (event) => {
 
   if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(request)
-        .then((response) => {
-          if (response.ok) {
-            const copy = response.clone()
-            void caches.open(CACHE_VERSION).then((cache) => cache.put(`${basePath}index.html`, copy))
-          }
-          return response
-        })
-        .catch(async () => (
-          await caches.match(`${basePath}index.html`)
-          ?? await caches.match(basePath)
-          ?? Response.error()
-        )),
+      networkFirst(request, `${basePath}index.html`)
+        .then(async (response) => response.ok
+          ? response
+          : await caches.match(basePath) ?? response),
     )
     return
   }
 
-  event.respondWith(
-    caches.match(request).then((cached) => {
-      const network = fetch(request)
-        .then((response) => {
-          if (response.ok && response.type !== 'opaque') {
-            const copy = response.clone()
-            void caches.open(CACHE_VERSION).then((cache) => cache.put(request, copy))
-          }
+  // Vite assets are content-hashed. Once a particular URL has loaded it is safe to
+  // serve cache-first, while stable shell URLs (manifest/icons/etc.) should prefer
+  // the newest network response after a deployment.
+  if (isVersionedAsset(url)) {
+    event.respondWith(
+      caches.match(request).then((cached) => {
+        if (cached) return cached
+        return fetch(request).then((response) => {
+          void putInShellCache(request, response)
           return response
         })
-        .catch(() => cached ?? Response.error())
-      return cached ?? network
-    }),
-  )
+      }),
+    )
+    return
+  }
+
+  event.respondWith(networkFirst(request))
 })
 
 self.addEventListener('message', (event) => {

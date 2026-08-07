@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-test('publishes an installable manifest and offline shell worker', async ({ page, request }) => {
+test('publishes an installable manifest and deployment-safe offline shell worker', async ({ page, request }) => {
   await page.goto('/')
 
   await expect(page.locator('.studio-brand-icon')).toHaveAttribute('src', '/WebDJ/icons/webdj.svg')
@@ -21,9 +21,12 @@ test('publishes an installable manifest and offline shell worker', async ({ page
   expect(workerResponse.ok()).toBe(true)
   const worker = await workerResponse.text()
   expect(worker).toContain("const CACHE_PREFIX = 'webdj-shell-'")
-  expect(worker).toContain("const CACHE_VERSION = `${CACHE_PREFIX}v3`")
+  expect(worker).toContain("const CACHE_VERSION = `${CACHE_PREFIX}v4`")
   expect(worker).toContain("request.headers.has('range')")
   expect(worker).toContain("request.destination === 'audio'")
+  expect(worker).toContain("fetch(request, { cache: 'no-store' })")
+  expect(worker).toContain("url.pathname.startsWith(`${basePath}assets/`)")
+  expect(worker).toContain('if (request.mode === \'navigate\')')
 })
 
 test('shows offline status and an install action only when relevant', async ({ page }) => {
