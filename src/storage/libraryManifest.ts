@@ -20,8 +20,22 @@ function openDatabase(): Promise<IDBDatabase | null> {
 }
 
 export function serializeLibraryTrack(track: LibraryTrack): PersistedLibraryTrack {
-  const { file: _file, ...persisted } = track
-  return persisted
+  return {
+    id: track.id,
+    fileName: track.fileName,
+    size: track.size,
+    type: track.type,
+    addedAt: track.addedAt,
+    source: track.source,
+    sourceTrackId: track.sourceTrackId,
+    artworkUrl: track.artworkUrl,
+    permalink: track.permalink,
+    durationSeconds: track.durationSeconds,
+    title: track.title,
+    artist: track.artist,
+    album: track.album,
+    genre: track.genre,
+  }
 }
 
 export function hydrateLibraryTrack(track: PersistedLibraryTrack): LibraryTrack {
