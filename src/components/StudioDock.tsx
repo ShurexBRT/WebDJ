@@ -1,8 +1,9 @@
-import { Bot, FolderOpen, History, ListMusic, Search, Sparkles, Trash2, Upload } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { Bot, FolderOpen, History, Search, Sparkles, Trash2, Upload } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
 import { effectiveBpm } from '../audio/tempo'
 import { getAudioEngine } from '../audio/AudioEngine'
 import { AudioSettings } from '../features/settings/AudioSettings'
+import { getTrackProfile, type TrackProfile } from '../storage/trackProfiles'
 import { useKeyStore } from '../state/keyStore'
 import { useLibraryStore } from '../state/libraryStore'
 import { useMixerStore, type DeckId } from '../state/mixerStore'
@@ -38,6 +39,8 @@ export function StudioDock() {
   const [query, setQuery] = useState('')
   const [browseSection, setBrowseSection] = useState('Local Files')
   const [isDragging, setIsDragging] = useState(false)
+  const [clearArmed, setClearArmed] = useState(false)
+  const [trackProfiles, setTrackProfiles] = useState<Map<string, TrackProfile>>(new Map())
   const engine = getAudioEngine()
 
   const deckByTrackId = useMemo(() => new Map(
@@ -53,25 +56,68 @@ export function StudioDock() {
       .some((value) => value.toLowerCase().includes(needle)))
   }, [libraryTracks, query])
 
+  useEffect(() => {
+    let cancelled = false
+    void Promise.all(libraryTracks.map(async (track) => [track.id, await getTrackProfile(track.id)] as const))
+      .then((entries) => {
+        if (cancelled) return
+        setTrackProfiles(new Map(entries.flatMap(([id, profile]) => profile ? [[id, profile] as const] : [])))
+      })
+    return () => { cancelled = true }
+  }, [
+    libraryTracks,
+    decks.A.trackId,
+    decks.A.bpm,
+    decks.B.trackId,
+    decks.B.bpm,
+    deckKeys.A.camelotKey,
+    deckKeys.B.camelotKey,
+  ])
+
+  useEffect(() => {
+    if (!clearArmed) return
+    const timeout = window.setTimeout(() => setClearArmed(false), 3_500)
+    return () => window.clearTimeout(timeout)
+  }, [clearArmed])
+
+  const handleClearLibrary = () => {
+    if (!clearArmed) {
+      setClearArmed(true)
+      return
+    }
+    clearLibrary()
+    setQuery('')
+    setClearArmed(false)
+  }
+
+  const visibleTrackCount = query.trim() && filteredTracks.length !== libraryTracks.length
+    ? `${filteredTracks.length} / ${libraryTracks.length}`
+    : String(libraryTracks.length)
+
   return (
     <section className="studio-dock" id="library-dock" aria-label="Studio library and routing">
       <section className="library-panel">
-        <div className="dock-tabs" aria-label="Library navigation">
+        <div className="dock-tabs library-toolbar" aria-label="Library navigation">
           <button className="active" type="button">LIBRARY</button>
           <label className="library-import-button"><Upload size={12} /> {isImporting ? 'IMPORTING…' : 'ADD TRACKS'}<input aria-label="Add tracks to library" type="file" accept="audio/*" multiple onChange={(event) => { void addFiles(event.target.files ?? []); event.currentTarget.value = '' }} /></label>
-          <button type="button" disabled={libraryTracks.length === 0} onClick={clearLibrary}>CLEAR</button>
-          <span>{libraryTracks.length} LIBRARY TRACKS</span>
+          <span className="library-track-count">{visibleTrackCount} TRACKS</span>
+          <button
+            className={`library-clear-button${clearArmed ? ' confirm' : ''}`}
+            type="button"
+            aria-label={clearArmed ? 'Confirm clear library' : 'Clear library'}
+            disabled={libraryTracks.length === 0}
+            onClick={handleClearLibrary}
+          >
+            {clearArmed ? 'CONFIRM CLEAR' : 'CLEAR'}
+          </button>
         </div>
         <div className="library-body">
           <aside className="library-sidebar">
             <strong>BROWSE</strong>
             {[
               ['AI Assistant', <Bot size={13} />],
-              ['Search', <Search size={13} />],
               ['Local Files', <FolderOpen size={13} />],
               ['History', <History size={13} />],
-              ['Playlists', <ListMusic size={13} />],
-              ['Genres', <ListMusic size={13} />],
               ['Audius', <Sparkles size={13} />],
               ['Jamendo', <Sparkles size={13} />],
             ].map(([label, icon]) => <button key={String(label)} className={browseSection === label ? 'active' : ''} type="button" onClick={() => setBrowseSection(String(label))}>{icon}{label}</button>)}
@@ -83,21 +129,24 @@ export function StudioDock() {
             onDragLeave={(event) => { if (event.currentTarget === event.target) setIsDragging(false) }}
             onDrop={(event) => { event.preventDefault(); setIsDragging(false); void addFiles(event.dataTransfer.files) }}
           >
-            {(browseSection === 'Local Files' || browseSection === 'Search') && (
+            {browseSection === 'Local Files' && (
               <>
                 <label className="library-search"><Search size={15} /><input aria-label="Search music library" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search title, artist, album or genre" /></label>
                 <div className="library-table library-track-table" role="table" aria-label="Local music library">
                   <div className="library-track-row library-head" role="row"><span>TITLE</span><span>ARTIST</span><span>ALBUM</span><span>BPM</span><span>KEY</span><span>SIZE</span><span>LOAD</span></div>
                   {filteredTracks.map((track) => {
                     const loaded = deckByTrackId.get(track.id)
-                    const bpm = loaded ? effectiveBpm(loaded.deck.bpm, loaded.deck.pitchPercent) : 0
+                    const profile = trackProfiles.get(track.id)
+                    const liveBpm = loaded ? effectiveBpm(loaded.deck.bpm, loaded.deck.pitchPercent) : 0
+                    const bpm = liveBpm > 0 ? liveBpm : profile?.bpm ?? 0
+                    const camelotKey = loaded?.key.camelotKey || profile?.camelotKey || '—'
                     return (
                       <div className={`library-track-row${loaded ? ` deck-row-${loaded.deckId.toLowerCase()}` : ''}`} role="row" key={track.id}>
                         <strong title={track.fileName}>{track.title}</strong>
                         <span>{track.artist}</span>
                         <span>{track.album || '—'}</span>
                         <span>{bpm > 0 ? bpm.toFixed(1) : '—'}</span>
-                        <span>{loaded?.key.camelotKey || '—'}</span>
+                        <span>{camelotKey}</span>
                         <span>{formatBytes(track.size)}</span>
                         <div className="library-actions">
                           <button type="button" aria-label={`Load ${track.title} to deck A`} onClick={() => requestDeckLoad('A', track.id)}>A</button>
@@ -124,7 +173,6 @@ export function StudioDock() {
 
             {browseSection === 'Audius' && <OnlineSourceBrowser source="audius" />}
             {browseSection === 'Jamendo' && <OnlineSourceBrowser source="jamendo" />}
-            {!['Local Files', 'Search', 'AI Assistant', 'History', 'Audius', 'Jamendo'].includes(browseSection) && <div className="library-empty">{browseSection} will use saved local collections in a later library-organizing pass.</div>}
             {isDragging && <div className="library-drop-overlay">DROP AUDIO FILES TO IMPORT</div>}
           </div>
         </div>

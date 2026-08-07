@@ -32,3 +32,20 @@ test('removes tracks from the in-memory library', async ({ page }) => {
   await page.getByRole('button', { name: 'Remove Blue Track from library', exact: true }).click()
   await expect(page.getByRole('table', { name: 'Local music library', exact: true })).not.toContainText('Blue Track')
 })
+
+test('requires a second explicit click before clearing the whole library', async ({ page }) => {
+  await page.goto('/')
+  await page.getByLabel('Add tracks to library', { exact: true }).setInputFiles(tracks)
+
+  const library = page.getByRole('table', { name: 'Local music library', exact: true })
+  await expect(library).toContainText('Blue Track')
+  await expect(library).toContainText('Orange Track')
+
+  await page.getByRole('button', { name: 'Clear library', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Confirm clear library', exact: true })).toBeVisible()
+  await expect(library).toContainText('Blue Track')
+
+  await page.getByRole('button', { name: 'Confirm clear library', exact: true }).click()
+  await expect(library).not.toContainText('Blue Track')
+  await expect(library).not.toContainText('Orange Track')
+})
