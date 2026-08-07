@@ -25,6 +25,32 @@ test('imports, searches and loads local library tracks into either deck', async 
   await expect(page.getByLabel('Seek deck B', { exact: true })).toBeEnabled()
 })
 
+test('pre-analyzes imported tracks sequentially and caches the results', async ({ page }) => {
+  await page.goto('/')
+  await page.getByLabel('Add tracks to library', { exact: true }).setInputFiles(tracks)
+
+  const analysisStatus = page.getByLabel('Library analysis status', { exact: true })
+  await expect(analysisStatus).toContainText('ANALYZED 2/2', { timeout: 15_000 })
+
+  const cachedProfiles = await page.evaluate(async () => new Promise<Array<Record<string, unknown>>>((resolve, reject) => {
+    const request = indexedDB.open('webdj-studio', 1)
+    request.onerror = () => reject(request.error)
+    request.onsuccess = () => {
+      const database = request.result
+      const transaction = database.transaction('trackProfiles', 'readonly')
+      const getAll = transaction.objectStore('trackProfiles').getAll()
+      getAll.onerror = () => reject(getAll.error)
+      getAll.onsuccess = () => resolve(getAll.result as Array<Record<string, unknown>>)
+      transaction.oncomplete = () => database.close()
+    }
+  }))
+
+  expect(cachedProfiles).toHaveLength(2)
+  expect(cachedProfiles.every((profile) => Number(profile.durationSeconds) > 0)).toBe(true)
+  expect(cachedProfiles.every((profile) => profile.gainAnalysisStatus === 'detected')).toBe(true)
+  expect(cachedProfiles.every((profile) => Array.isArray(profile.waveform) && profile.waveform.length > 0)).toBe(true)
+})
+
 test('removes tracks from the in-memory library', async ({ page }) => {
   await page.goto('/')
   await page.getByLabel('Add tracks to library', { exact: true }).setInputFiles(tracks[0])
