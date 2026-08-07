@@ -19,7 +19,7 @@ export function LibraryPersistenceController() {
   useEffect(() => {
     if (!manifestHydrated) return
     const timeout = window.setTimeout(() => {
-      void saveLibraryManifest(tracks)
+      void saveLibraryManifest(tracks.filter((track) => track.source === 'local'))
     }, 150)
     return () => window.clearTimeout(timeout)
   }, [manifestHydrated, tracks])
