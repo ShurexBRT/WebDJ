@@ -1,5 +1,6 @@
 import { Bot, Radio, ShieldAlert, Sparkles, Square } from 'lucide-react'
 import { takeOverAutoDj } from '../ai/autoDjControl'
+import { AUTO_DJ_PROFILE_IDS, mixProfile, type AutoDjMixProfileId } from '../ai/mixProfiles'
 import { useAutoDjStore } from '../state/autoDjStore'
 import { useAutoTransitionStore } from '../state/autoTransitionStore'
 import { useLibraryStore } from '../state/libraryStore'
@@ -23,20 +24,23 @@ export function AutoDjPanel() {
   const nextScore = useAutoDjStore((state) => state.nextScore)
   const completedTransitions = useAutoDjStore((state) => state.completedTransitions)
   const minimumScore = useAutoDjStore((state) => state.minimumScore)
+  const mixProfileId = useAutoDjStore((state) => state.mixProfileId)
   const error = useAutoDjStore((state) => state.error)
   const enable = useAutoDjStore((state) => state.enable)
   const setMinimumScore = useAutoDjStore((state) => state.setMinimumScore)
+  const setMixProfile = useAutoDjStore((state) => state.setMixProfile)
   const transitionProgress = useAutoTransitionStore((state) => state.progress)
   const tracks = useLibraryStore((state) => state.tracks)
   const decks = useMixerStore((state) => state.decks)
   const hasPlayingDeck = decks.A.isPlaying || decks.B.isPlaying
   const canEnable = tracks.length >= 2 && hasPlayingDeck
+  const profile = mixProfile(mixProfileId)
 
   return (
     <section className={`full-autodj-panel${enabled ? ' enabled' : ''} status-${status}`} aria-label="Full AutoDJ control">
       <div className="full-autodj-brand">
         <Bot size={20} />
-        <span><strong>FULL AUTODJ</strong><small>continuous local selection + confirmed transition engine</small></span>
+        <span><strong>FULL AUTODJ</strong><small>continuous local selection + phrase-sized transition engine</small></span>
       </div>
 
       <div className="full-autodj-state">
@@ -50,6 +54,18 @@ export function AutoDjPanel() {
         <strong>{nextTrackTitle || (enabled ? 'Waiting for a playable master deck…' : 'Manual control')}</strong>
         <small>{nextTrackTitle ? `${nextScore}% match` : `${tracks.length} library tracks`}</small>
       </div>
+
+      <label className="full-autodj-profile" title={profile.shortDescription}>
+        <span>MIX STYLE</span>
+        <select
+          aria-label="AutoDJ mix style"
+          value={mixProfileId}
+          disabled={enabled}
+          onChange={(event) => setMixProfile(event.target.value as AutoDjMixProfileId)}
+        >
+          {AUTO_DJ_PROFILE_IDS.map((profileId) => <option key={profileId} value={profileId}>{mixProfile(profileId).label}</option>)}
+        </select>
+      </label>
 
       <label className="full-autodj-threshold">
         <span>MIN MATCH <b>{minimumScore}</b></span>
