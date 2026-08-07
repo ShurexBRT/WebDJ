@@ -37,7 +37,7 @@ export function mergeLibraryAnalysisProfile(
     id: track.id,
     fileName: track.fileName,
     fileSize: track.size,
-    lastModified: track.file.lastModified,
+    lastModified: track.file?.lastModified ?? existing?.lastModified ?? 0,
     durationSeconds: analysis.durationSeconds || existing?.durationSeconds || track.durationSeconds || 0,
     bpm: existingBpmReady ? existing!.bpm : analysis.bpm?.bpm ?? 0,
     bpmConfidence: existingBpmReady ? existing!.bpmConfidence : analysis.bpm?.confidence ?? 0,
