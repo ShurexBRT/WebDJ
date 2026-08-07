@@ -1,0 +1,60 @@
+name: Lock dependencies once
+
+on:
+  push:
+    branches:
+      - agent/harden-stable-core
+
+permissions:
+  contents: write
+
+jobs:
+  lock:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Resolve current dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Pin resolved top-level versions
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs'
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'))
+          for (const section of ['dependencies', 'devDependencies']) {
+            for (const name of Object.keys(pkg[section] ?? {})) {
+              const installed = JSON.parse(fs.readFileSync(`node_modules/${name}/package.json`, 'utf8'))
+              pkg[section][name] = installed.version
+            }
+          }
+          fs.writeFileSync('package.json', `${JSON.stringify(pkg, null, 2)}\n`)
+          NODE
+
+      - name: Regenerate lockfile for pinned versions
+        run: npm install --package-lock-only --no-audit --no-fund
+
+      - name: Verify clean install
+        run: |
+          rm -rf node_modules
+          npm ci --no-audit --no-fund
+
+      - name: Remove one-shot workflow
+        run: rm .github/workflows/lock-dependencies-once.yml
+
+      - name: Commit dependency lock
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json .github/workflows/lock-dependencies-once.yml
+          git commit -m "Lock dependencies for stable builds"
+          git push
