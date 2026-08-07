@@ -10,6 +10,7 @@ import { useMixerStore, type DeckId } from '../state/mixerStore'
 import { AiAssistantPanel } from './AiAssistantPanel'
 import { ControllerSettings } from './ControllerSettings'
 import { KnobControl } from './KnobControl'
+import { MusicFolderControl } from './MusicFolderControl'
 import { OnlineSourceBrowser } from './OnlineSourceBrowser'
 import './library.css'
 
@@ -100,6 +101,7 @@ export function StudioDock() {
         <div className="dock-tabs library-toolbar" aria-label="Library navigation">
           <button className="active" type="button">LIBRARY</button>
           <label className="library-import-button"><Upload size={12} /> {isImporting ? 'IMPORTING…' : 'ADD TRACKS'}<input aria-label="Add tracks to library" type="file" accept="audio/*" multiple onChange={(event) => { void addFiles(event.target.files ?? []); event.currentTarget.value = '' }} /></label>
+          <MusicFolderControl />
           <span className="library-track-count">{visibleTrackCount} TRACKS</span>
           <button
             className={`library-clear-button${clearArmed ? ' confirm' : ''}`}
@@ -156,7 +158,7 @@ export function StudioDock() {
                       </div>
                     )
                   })}
-                  {filteredTracks.length === 0 && <div className="library-empty">Drop audio files here or use ADD TRACKS. Files stay local in your browser.</div>}
+                  {filteredTracks.length === 0 && <div className="library-empty">Drop audio files here, use ADD TRACKS, or LINK FOLDER. Files stay local in your browser.</div>}
                 </div>
               </>
             )}

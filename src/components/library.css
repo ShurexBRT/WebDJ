@@ -32,6 +32,63 @@
 }
 .library-import-button:hover { border-color: #3c6f8d; filter: brightness(1.08); }
 .library-import-button input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.music-folder-control {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.music-folder-primary {
+  min-height: 29px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border: 1px solid #334036;
+  border-radius: 3px;
+  padding: 0 8px;
+  background: linear-gradient(180deg, #142019, #0a100d);
+  color: #9fd2ae;
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: .055em;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.music-folder-primary:hover:not(:disabled) { border-color: #4c7459; filter: brightness(1.1); }
+.music-folder-control.status-permission-required .music-folder-primary,
+.music-folder-control.status-error .music-folder-primary {
+  border-color: #665126;
+  color: #e1bd76;
+  background: linear-gradient(180deg, #211b10, #100d08);
+}
+.music-folder-name {
+  min-width: 0;
+  max-width: 180px;
+  display: grid;
+  gap: 1px;
+  line-height: 1.05;
+}
+.music-folder-name b,
+.music-folder-name small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.music-folder-name b { color: #a9b5ae; font-size: 7px; }
+.music-folder-name small { color: #657169; font-size: 6px; }
+.music-folder-forget {
+  width: 25px;
+  height: 25px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #30373b;
+  border-radius: 3px;
+  background: #0d1012;
+  color: #737d82;
+  cursor: pointer;
+}
+.music-folder-forget:hover { border-color: #654040; color: #c98b8b; }
 .library-track-count {
   margin-left: 3px;
   padding: 4px 7px;
@@ -174,10 +231,12 @@
 
 @media (max-width: 1450px) {
   .studio-dock { grid-template-columns: minmax(0, 1fr) 290px; }
+  .music-folder-name { max-width: 120px; }
   .library-track-row { grid-template-columns: minmax(110px, 1fr) minmax(80px, .7fr) 65px 42px 38px 48px 96px; padding: 0 6px; }
 }
 
 @media (max-width: 1280px) {
   .studio-dock { grid-template-columns: minmax(0, 1fr) 285px; }
+  .music-folder-name { display: none; }
   .headphone-panel { grid-column: auto; }
 }
