@@ -78,7 +78,7 @@ test('restores saved library rows after a page reload without copying audio into
   const restoredLibrary = page.getByRole('table', { name: 'Local music library', exact: true })
   await expect(restoredLibrary).toContainText('Blue Track')
   await expect(restoredLibrary).toContainText('Orange Track')
-  await page.getByRole('button', { name: 'Load Blue Track to deck A', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Load Blue Track to deck A', exact: true })).toBeDisabled()
   await expect(page.getByTestId('deck-A')).toContainText('No track loaded')
 })
 
