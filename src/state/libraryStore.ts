@@ -31,6 +31,7 @@ type LibraryState = {
   addRemoteTrack: (file: File, onlineTrack: OnlineTrack) => Promise<LibraryTrack>
   removeTrack: (id: string) => void
   clearLibrary: () => void
+  updateTrackDuration: (trackId: string, durationSeconds: number) => void
   requestDeckLoad: (deckId: DeckId, trackId: string) => void
   consumeDeckRequest: (deckId: DeckId, requestId: number) => void
 }
@@ -99,6 +100,14 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
   },
   removeTrack: (id) => set((state) => ({ tracks: state.tracks.filter((track) => track.id !== id) })),
   clearLibrary: () => set({ tracks: [], deckRequests: { A: null, B: null } }),
+  updateTrackDuration: (trackId, durationSeconds) => {
+    if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) return
+    set((state) => ({
+      tracks: state.tracks.map((track) => track.id === trackId && Math.abs(track.durationSeconds - durationSeconds) > 0.01
+        ? { ...track, durationSeconds }
+        : track),
+    }))
+  },
   requestDeckLoad: (deckId, trackId) => {
     const track = get().tracks.find((item) => item.id === trackId)
     if (!track) return
