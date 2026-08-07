@@ -1,8 +1,10 @@
 import { getAudioEngine } from '../audio/AudioEngine'
 import { analyzeDecodedTrack, decodeTrackFile } from '../audio/trackAnalysis'
+import { useAutoDjStore } from '../state/autoDjStore'
 import { useAutoTransitionStore } from '../state/autoTransitionStore'
 import { useLibraryAnalysisStore } from '../state/libraryAnalysisStore'
 import { useLibraryStore, type LibraryTrack } from '../state/libraryStore'
+import { useMixerStore } from '../state/mixerStore'
 import { getTrackProfile, saveTrackProfile } from '../storage/trackProfiles'
 import { isTrackProfileAnalysisComplete, mergeLibraryAnalysisProfile } from './libraryAnalysis'
 
@@ -19,8 +21,22 @@ function transitionNeedsMainThread(): boolean {
   return status === 'preparing' || status === 'ready' || status === 'running'
 }
 
+function manualPlaybackNeedsPriority(): boolean {
+  if (useAutoDjStore.getState().enabled) return false
+  const decks = useMixerStore.getState().decks
+  return decks.A.isPlaying || decks.B.isPlaying
+}
+
 async function waitForSafeAnalysisWindow(): Promise<void> {
-  while (transitionNeedsMainThread()) await delay(100)
+  while (transitionNeedsMainThread() || manualPlaybackNeedsPriority()) await delay(120)
+}
+
+async function waitForInitialInteractionGrace(): Promise<void> {
+  // Importing/restoring a library is normally followed immediately by loading and
+  // pressing Play. Give that user action a chance to run before starting a long,
+  // synchronous BPM/key DSP pass on the main thread.
+  await delay(1_500)
+  await waitForSafeAnalysisWindow()
 }
 
 export async function runLibraryAnalysisWorker(): Promise<void> {
@@ -31,8 +47,8 @@ export async function runLibraryAnalysisWorker(): Promise<void> {
     while (true) {
       const library = useLibraryStore.getState()
       const queue = useLibraryAnalysisStore.getState()
-      const nextTrack = library.tracks.find((track) => queue.items[track.id]?.status === 'queued')
-      if (!nextTrack) return
+      const nextTrack = library.tracks.find((track) => track.file && queue.items[track.id]?.status === 'queued')
+      if (!nextTrack?.file) return
 
       queue.start(nextTrack.id, nextTrack.title || nextTrack.fileName)
 
@@ -44,8 +60,7 @@ export async function runLibraryAnalysisWorker(): Promise<void> {
           continue
         }
 
-        // Only begin decoding while no transition is preparing, armed for start, or running.
-        await waitForSafeAnalysisWindow()
+        await waitForInitialInteractionGrace()
         if (!trackStillExists(nextTrack.id)) {
           useLibraryAnalysisStore.getState().removeMissing(useLibraryStore.getState().tracks.map((track) => track.id))
           continue
@@ -53,8 +68,8 @@ export async function runLibraryAnalysisWorker(): Promise<void> {
 
         const decoded = await decodeTrackFile(nextTrack.file, getAudioEngine().context)
 
-        // decodeAudioData is asynchronous. A transition may have started while decoding,
-        // so re-check immediately before the synchronous BPM/key/gain/waveform DSP pass.
+        // decodeAudioData is asynchronous. Playback or a transition may have started
+        // while decoding, so re-check immediately before the synchronous DSP pass.
         await waitForSafeAnalysisWindow()
         if (!trackStillExists(nextTrack.id)) {
           useLibraryAnalysisStore.getState().removeMissing(useLibraryStore.getState().tracks.map((track) => track.id))
@@ -76,12 +91,12 @@ export async function runLibraryAnalysisWorker(): Promise<void> {
         }
       }
 
-      await delay(24)
+      await delay(40)
     }
   } finally {
     workerRunning = false
     const hasQueuedTracks = useLibraryStore.getState().tracks.some(
-      (track) => useLibraryAnalysisStore.getState().items[track.id]?.status === 'queued',
+      (track) => track.file && useLibraryAnalysisStore.getState().items[track.id]?.status === 'queued',
     )
     if (hasQueuedTracks) void runLibraryAnalysisWorker()
   }
@@ -92,9 +107,10 @@ export async function syncCachedLibraryProfiles(
   isCancelled: () => boolean,
 ): Promise<void> {
   const ids = tracks.map((track) => track.id)
+  const availableIds = tracks.filter((track) => track.file).map((track) => track.id)
   const queue = useLibraryAnalysisStore.getState()
   queue.removeMissing(ids)
-  queue.enqueue(ids)
+  queue.enqueue(availableIds)
 
   await Promise.all(tracks.map(async (track) => {
     const current = useLibraryAnalysisStore.getState().items[track.id]
