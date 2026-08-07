@@ -11,12 +11,15 @@ export type TrackAnalysisResult = {
   gain: GainAnalysisResult | null
 }
 
-export async function analyzeTrackFile(
+export async function decodeTrackFile(
   file: File,
   context: BaseAudioContext,
-): Promise<TrackAnalysisResult> {
+): Promise<AudioBuffer> {
   const encoded = await file.arrayBuffer()
-  const buffer = await context.decodeAudioData(encoded.slice(0))
+  return context.decodeAudioData(encoded.slice(0))
+}
+
+export function analyzeDecodedTrack(buffer: AudioBuffer): TrackAnalysisResult {
   const channels = Array.from(
     { length: buffer.numberOfChannels },
     (_, channelIndex) => buffer.getChannelData(channelIndex),
@@ -29,4 +32,11 @@ export async function analyzeTrackFile(
     key: analyzeAudioBufferKey(buffer),
     gain: analyzeAudioBufferGain(buffer),
   }
+}
+
+export async function analyzeTrackFile(
+  file: File,
+  context: BaseAudioContext,
+): Promise<TrackAnalysisResult> {
+  return analyzeDecodedTrack(await decodeTrackFile(file, context))
 }
