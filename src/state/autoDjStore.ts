@@ -1,6 +1,19 @@
 import { create } from 'zustand'
+import { isAutoDjMixProfileId, type AutoDjMixProfileId } from '../ai/mixProfiles'
 
 export type AutoDjStatus = 'off' | 'armed' | 'selecting' | 'preparing' | 'ready' | 'transitioning' | 'error'
+
+const PROFILE_STORAGE_KEY = 'webdj-autodj-profile-v1'
+
+function savedProfile(): AutoDjMixProfileId {
+  if (typeof localStorage === 'undefined') return 'smooth'
+  try {
+    const value = localStorage.getItem(PROFILE_STORAGE_KEY)
+    return value && isAutoDjMixProfileId(value) ? value : 'smooth'
+  } catch {
+    return 'smooth'
+  }
+}
 
 type AutoDjState = {
   enabled: boolean
@@ -10,6 +23,7 @@ type AutoDjState = {
   nextScore: number
   completedTransitions: number
   minimumScore: number
+  mixProfileId: AutoDjMixProfileId
   error: string | null
   enable: () => void
   disable: () => void
@@ -18,6 +32,7 @@ type AutoDjState = {
   clearNextTrack: () => void
   completeTransition: () => void
   setMinimumScore: (score: number) => void
+  setMixProfile: (profileId: AutoDjMixProfileId) => void
   fail: (message: string) => void
   reset: () => void
 }
@@ -30,6 +45,7 @@ const initialState = () => ({
   nextScore: 0,
   completedTransitions: 0,
   minimumScore: 25,
+  mixProfileId: savedProfile(),
   error: null as string | null,
 })
 
@@ -49,6 +65,10 @@ export const useAutoDjStore = create<AutoDjState>((set) => ({
     error: null,
   })),
   setMinimumScore: (minimumScore) => set({ minimumScore: Math.max(0, Math.min(100, minimumScore)) }),
+  setMixProfile: (mixProfileId) => {
+    try { localStorage.setItem(PROFILE_STORAGE_KEY, mixProfileId) } catch { /* storage is optional */ }
+    set({ mixProfileId })
+  },
   fail: (error) => set({ status: 'error', error }),
   reset: () => set(initialState()),
 }))

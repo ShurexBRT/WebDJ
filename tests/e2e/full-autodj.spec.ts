@@ -39,6 +39,19 @@ async function getReferenceDeck(page: import('@playwright/test').Page): Promise<
   throw new Error('Expected a MASTER or currently playing reference deck')
 }
 
+test('selects a mix style before automation and locks it while active', async ({ page }) => {
+  await createAutoDjSession(page)
+  const style = page.getByLabel('AutoDJ mix style')
+  await expect(style).toHaveValue('smooth')
+  await style.selectOption('deep')
+  await expect(style).toHaveValue('deep')
+  await page.getByRole('button', { name: 'Enable Full AutoDJ' }).click()
+  await expect(style).toBeDisabled()
+  await page.getByRole('button', { name: 'Take over from Full AutoDJ' }).click()
+  await expect(style).toBeEnabled()
+  await expect(style).toHaveValue('deep')
+})
+
 test('selects, prepares and continuously executes the next mix', async ({ page }) => {
   const panel = await createAutoDjSession(page)
   await page.getByRole('button', { name: 'Enable Full AutoDJ' }).click()
@@ -89,6 +102,8 @@ test('survives five consecutive accelerated Full AutoDJ cycles', async ({ page }
   await page.getByLabel('BPM deck A', { exact: true }).fill('240')
   await page.getByRole('button', { name: 'Play deck A', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Enable Full AutoDJ' })).toBeEnabled()
+  await page.getByLabel('AutoDJ mix style').selectOption('quick')
+  await expect(page.getByLabel('AutoDJ mix style')).toHaveValue('quick')
   await page.getByRole('button', { name: 'Enable Full AutoDJ' }).click()
 
   for (let mixNumber = 1; mixNumber <= 5; mixNumber += 1) {

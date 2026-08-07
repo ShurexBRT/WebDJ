@@ -1,3 +1,5 @@
+import { mixProfile, type AutoDjMixProfileId, type AutoDjTransitionStrategy } from './mixProfiles'
+
 export type TrackIntelligence = {
   id: string
   title: string
@@ -25,7 +27,7 @@ export type TrackSuggestion = {
   trackId: string
   score: number
   confidence: number
-  transition: 'long-blend' | 'bass-swap' | 'filter-blend' | 'echo-out' | 'hard-cut'
+  transition: AutoDjTransitionStrategy
   reasons: string[]
   warnings: string[]
   breakdown: ScoreBreakdown
@@ -104,19 +106,57 @@ function recencyPenalty(lastLoadedAt: number | null, now: number): number {
   return 0
 }
 
-function chooseTransition(breakdown: ScoreBreakdown): TrackSuggestion['transition'] {
-  if (breakdown.tempo >= 85 && breakdown.harmonic >= 85 && breakdown.energy >= 65) return 'long-blend'
+function chooseTransition(breakdown: ScoreBreakdown, profileId: AutoDjMixProfileId): AutoDjTransitionStrategy {
+  if (profileId === 'club') {
+    if (breakdown.tempo >= 75 && breakdown.energy >= 65) return 'bass-swap'
+    if (breakdown.tempo >= 60 && breakdown.harmonic >= 45) return 'filter-blend'
+    if (breakdown.tempo >= 35) return 'echo-out'
+    return 'hard-cut'
+  }
+  if (profileId === 'deep') {
+    if (breakdown.tempo >= 70 && breakdown.harmonic >= 80) return 'long-blend'
+    if (breakdown.tempo >= 55 && breakdown.harmonic >= 60) return 'filter-blend'
+    if (breakdown.tempo >= 75 && breakdown.energy >= 70) return 'bass-swap'
+    if (breakdown.tempo >= 35) return 'echo-out'
+    return 'hard-cut'
+  }
+  if (profileId === 'quick') {
+    if (breakdown.tempo >= 70 && breakdown.energy >= 65) return 'bass-swap'
+    if (breakdown.tempo >= 45) return 'echo-out'
+    return 'hard-cut'
+  }
+  if (breakdown.tempo >= 80 && breakdown.harmonic >= 75 && breakdown.energy >= 55) return 'long-blend'
   if (breakdown.tempo >= 80 && breakdown.energy >= 70) return 'bass-swap'
-  if (breakdown.tempo >= 60 && breakdown.harmonic >= 55) return 'filter-blend'
+  if (breakdown.tempo >= 55 && breakdown.harmonic >= 50) return 'filter-blend'
   if (breakdown.tempo >= 35) return 'echo-out'
   return 'hard-cut'
+}
+
+function energyDirectionAdjustment(
+  referenceRms: number | null,
+  candidateRms: number | null,
+  profileId: AutoDjMixProfileId,
+): number {
+  if (referenceRms === null || candidateRms === null) return 0
+  const delta = candidateRms - referenceRms
+  if (profileId === 'club') {
+    if (delta >= 0.5 && delta <= 3) return 5
+    if (delta < -4) return -5
+  }
+  if (profileId === 'quick') {
+    if (delta >= 0.5 && delta <= 4) return 3
+    if (delta < -5) return -3
+  }
+  return 0
 }
 
 export function scoreTrackCandidate(
   reference: TrackIntelligence,
   candidate: TrackIntelligence,
   now = Date.now(),
+  profileId: AutoDjMixProfileId = 'smooth',
 ): TrackSuggestion {
+  const profile = mixProfile(profileId)
   const breakdown: ScoreBreakdown = {
     tempo: tempoScore(reference.bpm, candidate.bpm),
     harmonic: harmonicScore(reference.camelotKey, candidate.camelotKey),
@@ -128,18 +168,20 @@ export function scoreTrackCandidate(
   }
 
   const weighted = (
-    breakdown.tempo * 0.28
-    + breakdown.harmonic * 0.24
-    + breakdown.energy * 0.18
-    + breakdown.genre * 0.12
-    + breakdown.duration * 0.06
-    + breakdown.confidence * 0.12
+    breakdown.tempo * profile.scoring.tempo
+    + breakdown.harmonic * profile.scoring.harmonic
+    + breakdown.energy * profile.scoring.energy
+    + breakdown.genre * profile.scoring.genre
+    + breakdown.duration * profile.scoring.duration
+    + breakdown.confidence * profile.scoring.confidence
+    + energyDirectionAdjustment(reference.rmsDb, candidate.rmsDb, profileId)
     - breakdown.recencyPenalty
   )
 
   const reasons: string[] = []
   const warnings: string[] = []
   const bpmDifference = reference.bpm > 0 && candidate.bpm > 0 ? Math.abs(reference.bpm - candidate.bpm) : null
+  const energyDelta = reference.rmsDb !== null && candidate.rmsDb !== null ? candidate.rmsDb - reference.rmsDb : null
 
   if (breakdown.recencyPenalty > 0) warnings.push('Recently played')
   if (candidate.analysisConfidence < 0.55) warnings.push('Low analysis confidence')
@@ -152,7 +194,8 @@ export function scoreTrackCandidate(
   else if (!reference.camelotKey || !candidate.camelotKey) warnings.push('Key analysis missing')
   else if (breakdown.harmonic < 45) warnings.push('Possible harmonic clash')
 
-  if (breakdown.energy >= 80 && reference.rmsDb !== null && candidate.rmsDb !== null) reasons.push('Similar loudness energy')
+  if (energyDelta !== null && (profileId === 'club' || profileId === 'quick') && energyDelta >= 0.5 && energyDelta <= 4) reasons.push('Controlled energy lift')
+  else if (breakdown.energy >= 80 && reference.rmsDb !== null && candidate.rmsDb !== null) reasons.push('Similar loudness energy')
   else if (reference.rmsDb === null || candidate.rmsDb === null) warnings.push('Energy estimate unavailable')
 
   if (breakdown.genre >= 78) reasons.push('Related genre metadata')
@@ -161,7 +204,7 @@ export function scoreTrackCandidate(
     trackId: candidate.id,
     score: Math.round(clamp100(weighted)),
     confidence: Math.round(clamp100(candidate.analysisConfidence * 100)),
-    transition: chooseTransition(breakdown),
+    transition: chooseTransition(breakdown, profileId),
     reasons: reasons.slice(0, 3),
     warnings: warnings.slice(0, 3),
     breakdown,
@@ -172,9 +215,10 @@ export function rankTrackCandidates(
   reference: TrackIntelligence,
   candidates: TrackIntelligence[],
   now = Date.now(),
+  profileId: AutoDjMixProfileId = 'smooth',
 ): TrackSuggestion[] {
   return candidates
     .filter((candidate) => candidate.id !== reference.id)
-    .map((candidate) => scoreTrackCandidate(reference, candidate, now))
+    .map((candidate) => scoreTrackCandidate(reference, candidate, now, profileId))
     .sort((left, right) => right.score - left.score || right.confidence - left.confidence)
 }

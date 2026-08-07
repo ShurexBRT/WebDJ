@@ -1,13 +1,45 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="WebDJ waveform disc maskable icon">
+  <defs>
+    <radialGradient id="bg" cx="38%" cy="24%" r="85%">
+      <stop offset="0" stop-color="#242b34"/>
+      <stop offset=".48" stop-color="#10151b"/>
+      <stop offset="1" stop-color="#040608"/>
+    </radialGradient>
+    <radialGradient id="disc" cx="45%" cy="38%" r="70%">
+      <stop offset="0" stop-color="#151b21"/>
+      <stop offset=".6" stop-color="#080b0e"/>
+      <stop offset="1" stop-color="#020304"/>
+    </radialGradient>
+    <linearGradient id="wave" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#08bfff"/>
+      <stop offset=".45" stop-color="#78dbef"/>
+      <stop offset=".55" stop-color="#f3d3a1"/>
+      <stop offset="1" stop-color="#ff8b12"/>
+    </linearGradient>
+  </defs>
   <rect width="512" height="512" fill="#05080b"/>
-  <g transform="translate(64 96) scale(.75)">
-    <circle cx="150" cy="256" r="112" fill="#080b0e" stroke="#29b6ff" stroke-width="22"/>
-    <circle cx="150" cy="256" r="58" fill="#151b22" stroke="#d7e2e9" stroke-width="9"/>
-    <circle cx="150" cy="256" r="14" fill="#29b6ff"/>
-    <circle cx="362" cy="256" r="112" fill="#080b0e" stroke="#ff921f" stroke-width="22"/>
-    <circle cx="362" cy="256" r="58" fill="#151b22" stroke="#d7e2e9" stroke-width="9"/>
-    <circle cx="362" cy="256" r="14" fill="#ff921f"/>
-    <rect x="235" y="108" width="42" height="296" rx="14" fill="#11171c" stroke="#4a545f" stroke-width="9"/>
-    <rect x="246" y="158" width="20" height="142" rx="10" fill="#62c9ff"/>
+  <g transform="translate(64 64) scale(.75)">
+    <rect width="512" height="512" rx="104" fill="url(#bg)"/>
+    <circle cx="256" cy="256" r="180" fill="#070a0d" stroke="#39434d" stroke-width="8"/>
+    <circle cx="256" cy="256" r="156" fill="url(#disc)" stroke="#252d35" stroke-width="4"/>
+    <g fill="none" stroke-width="20">
+      <path d="M256 80 A176 176 0 0 0 256 432" stroke="#16bfff"/>
+      <path d="M256 80 A176 176 0 0 1 256 432" stroke="#ff921f"/>
+    </g>
+    <g fill="none" stroke="#1c242c" stroke-width="2" opacity=".9">
+      <circle cx="256" cy="256" r="136"/><circle cx="256" cy="256" r="125"/><circle cx="256" cy="256" r="114"/><circle cx="256" cy="256" r="103"/><circle cx="256" cy="256" r="92"/>
+    </g>
+    <g fill="url(#wave)">
+      <rect x="128" y="232" width="18" height="48" rx="9"/>
+      <rect x="158" y="210" width="18" height="92" rx="9"/>
+      <rect x="188" y="178" width="18" height="156" rx="9"/>
+      <rect x="218" y="202" width="18" height="108" rx="9"/>
+      <rect x="248" y="150" width="18" height="212" rx="9"/>
+      <rect x="278" y="194" width="18" height="124" rx="9"/>
+      <rect x="308" y="174" width="18" height="164" rx="9"/>
+      <rect x="338" y="214" width="18" height="84" rx="9"/>
+      <rect x="368" y="232" width="18" height="48" rx="9"/>
+    </g>
+    <circle cx="256" cy="256" r="10" fill="#e7edf1" opacity=".9"/>
   </g>
 </svg>

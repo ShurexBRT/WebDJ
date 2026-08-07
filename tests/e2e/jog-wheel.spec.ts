@@ -9,6 +9,7 @@ test('scrubs a paused deck with platter drag and keyboard control', async ({ pag
   const seek = page.getByLabel('Seek deck A', { exact: true })
   await expect(jog).toHaveAttribute('aria-disabled', 'false')
   await expect(jog).toHaveAttribute('aria-valuetext', /paused/)
+  await jog.scrollIntoViewIfNeeded()
 
   const box = await jog.boundingBox()
   expect(box).not.toBeNull()
@@ -45,6 +46,7 @@ test('applies temporary pitch bend while playing and restores base pitch on rele
   const pitch = page.getByLabel('Pitch deck A', { exact: true })
   await page.waitForTimeout(250)
   const beforeBend = Number(await seek.inputValue())
+  await jog.scrollIntoViewIfNeeded()
 
   const box = await jog.boundingBox()
   expect(box).not.toBeNull()

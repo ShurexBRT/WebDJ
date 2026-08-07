@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'webdj-shell-'
-const CACHE_VERSION = `${CACHE_PREFIX}v2`
+const CACHE_VERSION = `${CACHE_PREFIX}v3`
 const scopeUrl = new URL(self.registration.scope)
 const basePath = scopeUrl.pathname.endsWith('/') ? scopeUrl.pathname : `${scopeUrl.pathname}/`
 const shellAssets = [

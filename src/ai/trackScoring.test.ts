@@ -45,4 +45,26 @@ describe('AI next-track scoring', () => {
     ])
     expect(ranked.map((item) => item.trackId)).toEqual(['strong', 'weak'])
   })
+
+  it('lets deep mixing prefer harmony while club mixing can prefer an energy lift', () => {
+    const reference = track()
+    const candidates = [
+      track({ id: 'harmonic', camelotKey: '8A', rmsDb: -18 }),
+      track({ id: 'energy-lift', bpm: 125, camelotKey: '2B', rmsDb: -12 }),
+    ]
+
+    const deep = rankTrackCandidates(reference, candidates, 1_000_000, 'deep')
+    const club = rankTrackCandidates(reference, candidates, 1_000_000, 'club')
+
+    expect(deep[0].trackId).toBe('harmonic')
+    expect(club[0].trackId).toBe('energy-lift')
+    expect(club[0].reasons).toContain('Controlled energy lift')
+  })
+
+  it('changes transition character with the selected style', () => {
+    const candidate = track({ id: 'candidate', bpm: 125, camelotKey: '9A', rmsDb: -13 })
+    expect(scoreTrackCandidate(track(), candidate, 1_000_000, 'smooth').transition).toBe('long-blend')
+    expect(scoreTrackCandidate(track(), candidate, 1_000_000, 'club').transition).toBe('bass-swap')
+    expect(scoreTrackCandidate(track(), candidate, 1_000_000, 'quick').transition).toBe('bass-swap')
+  })
 })

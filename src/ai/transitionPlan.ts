@@ -1,7 +1,8 @@
 import type { TrackSuggestion } from './trackScoring'
 import type { DeckId } from '../state/mixerStore'
+import { mixProfile, type AutoDjMixProfileId, type AutoDjTransitionStrategy } from './mixProfiles'
 
-export type TransitionStrategy = TrackSuggestion['transition']
+export type TransitionStrategy = AutoDjTransitionStrategy
 
 export type AutoTransitionPlan = {
   trackId: string
@@ -9,6 +10,7 @@ export type AutoTransitionPlan = {
   outgoingDeck: DeckId
   targetDeck: DeckId
   strategy: TransitionStrategy
+  profileId: AutoDjMixProfileId | 'manual'
   beats: number
   score: number
 }
@@ -29,11 +31,15 @@ const smoothstep = (value: number) => {
   return safe * safe * (3 - 2 * safe)
 }
 
-export function transitionBeats(strategy: TransitionStrategy): number {
+const legacyTransitionBeats = (strategy: TransitionStrategy): number => {
   if (strategy === 'long-blend') return 32
   if (strategy === 'bass-swap' || strategy === 'filter-blend') return 16
   if (strategy === 'echo-out') return 8
   return 1
+}
+
+export function transitionBeats(strategy: TransitionStrategy, profileId?: AutoDjMixProfileId): number {
+  return profileId ? mixProfile(profileId).transitionBeats[strategy] : legacyTransitionBeats(strategy)
 }
 
 export function createAutoTransitionPlan(
@@ -41,6 +47,7 @@ export function createAutoTransitionPlan(
   trackTitle: string,
   outgoingDeck: DeckId,
   targetDeck: DeckId,
+  profileId?: AutoDjMixProfileId,
 ): AutoTransitionPlan {
   return {
     trackId: suggestion.trackId,
@@ -48,7 +55,8 @@ export function createAutoTransitionPlan(
     outgoingDeck,
     targetDeck,
     strategy: suggestion.transition,
-    beats: transitionBeats(suggestion.transition),
+    profileId: profileId ?? 'manual',
+    beats: transitionBeats(suggestion.transition, profileId),
     score: suggestion.score,
   }
 }
@@ -73,13 +81,11 @@ export function transitionFrame(strategy: TransitionStrategy, progress: number):
   if (strategy === 'long-blend') return bassSwapFrame(safe, 32)
   if (strategy === 'bass-swap') return bassSwapFrame(safe, 16)
   if (strategy === 'filter-blend') {
+    const bass = bassSwapFrame(safe, 32)
     return {
-      targetMix: smoothstep(safe),
-      outgoingLowDb: 0,
-      targetLowDb: 0,
+      ...bass,
       outgoingFilter: lerp(0, 0.86, safe),
       targetFilter: lerp(-0.68, 0, safe),
-      outgoingEcho: false,
     }
   }
   if (strategy === 'echo-out') {
