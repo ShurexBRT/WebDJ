@@ -39,6 +39,19 @@ async function getReferenceDeck(page: import('@playwright/test').Page): Promise<
   throw new Error('Expected a MASTER or currently playing reference deck')
 }
 
+test('selects a mix style before automation and locks it while active', async ({ page }) => {
+  await createAutoDjSession(page)
+  const style = page.getByLabel('AutoDJ mix style')
+  await expect(style).toHaveValue('smooth')
+  await style.selectOption('deep')
+  await expect(style).toHaveValue('deep')
+  await page.getByRole('button', { name: 'Enable Full AutoDJ' }).click()
+  await expect(style).toBeDisabled()
+  await page.getByRole('button', { name: 'Take over from Full AutoDJ' }).click()
+  await expect(style).toBeEnabled()
+  await expect(style).toHaveValue('deep')
+})
+
 test('selects, prepares and continuously executes the next mix', async ({ page }) => {
   const panel = await createAutoDjSession(page)
   await page.getByRole('button', { name: 'Enable Full AutoDJ' }).click()
