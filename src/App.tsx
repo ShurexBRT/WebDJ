@@ -1,4 +1,4 @@
-import { Library, Magnet, Music2, Settings, Waves } from 'lucide-react'
+import { Library, Magnet, Settings, Waves } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { AutoDjController } from './ai/AutoDjController'
 import { getAudioEngine } from './audio/AudioEngine'
@@ -43,7 +43,7 @@ function App() {
       <AutoDjController />
       <header className="studio-header">
         <div className="studio-brand">
-          <Music2 size={24} />
+          <img className="studio-brand-icon" src={`${import.meta.env.BASE_URL}icons/webdj.svg`} alt="" aria-hidden="true" />
           <div><strong>WEB DJ</strong><span>STUDIO</span></div>
         </div>
 
