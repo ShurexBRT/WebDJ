@@ -3,6 +3,7 @@ import { expect, test } from '@playwright/test'
 test('publishes an installable manifest and offline shell worker', async ({ page, request }) => {
   await page.goto('/')
 
+  await expect(page.locator('.studio-brand-icon')).toHaveAttribute('src', '/WebDJ/icons/webdj.svg')
   const manifestHref = await page.locator('link[rel="manifest"]').getAttribute('href')
   expect(manifestHref).toBe('/WebDJ/manifest.webmanifest')
 
