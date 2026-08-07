@@ -1,11 +1,13 @@
 import { useEffect } from 'react'
 import { effectiveBpm } from '../audio/tempo'
 import { getAudioEngine } from '../audio/AudioEngine'
+import { isTrackProfileAnalysisComplete, isTrackProfileAutoDjUsable } from '../library/libraryAnalysis'
 import { getTrackProfile, type TrackProfile } from '../storage/trackProfiles'
 import { useAutoDjStore } from '../state/autoDjStore'
 import { useAutoTransitionStore } from '../state/autoTransitionStore'
 import { useGainAssistStore } from '../state/gainAssistStore'
 import { useKeyStore } from '../state/keyStore'
+import { useLibraryAnalysisStore } from '../state/libraryAnalysisStore'
 import { useLibraryStore, type LibraryTrack } from '../state/libraryStore'
 import { useMixerStore } from '../state/mixerStore'
 import { freeDeckFor, selectAutoDjReferenceDeck, shouldStartPreparedTransition } from './autoDj'
@@ -34,7 +36,7 @@ function candidateIntelligence(
     bpm: profile?.bpm ?? 0,
     camelotKey: profile?.camelotKey ?? '',
     rmsDb: typeof rmsDb === 'number' && Number.isFinite(rmsDb) ? rmsDb : null,
-    durationSeconds: track.durationSeconds,
+    durationSeconds: track.durationSeconds > 0 ? track.durationSeconds : profile?.durationSeconds ?? 0,
     analysisConfidence: profileConfidence(profile),
     lastLoadedAt,
   }
@@ -76,6 +78,28 @@ async function selectAndPrepareNextTrack(): Promise<void> {
   if (currentMixer.decks[referenceDeckId].trackId !== referenceDeck.trackId) return
 
   const profiles = new Map(profileEntries)
+  const nonReferenceTracks = library.tracks.filter((track) => track.id !== referenceDeck.trackId)
+  const analyzedTracks = nonReferenceTracks.filter((track) => isTrackProfileAnalysisComplete(profiles.get(track.id) ?? null))
+  const analysisItems = useLibraryAnalysisStore.getState().items
+  const hasPendingAnalysis = nonReferenceTracks.some((track) => {
+    if (isTrackProfileAnalysisComplete(profiles.get(track.id) ?? null)) return false
+    const status = analysisItems[track.id]?.status
+    return status !== 'failed'
+  })
+  const desiredAnalyzedPool = Math.min(3, nonReferenceTracks.length)
+
+  if (analyzedTracks.length < desiredAnalyzedPool && hasPendingAnalysis) {
+    autoDj.setStatus('analyzing-library')
+    return
+  }
+
+  const usableTracks = analyzedTracks.filter((track) => isTrackProfileAutoDjUsable(profiles.get(track.id) ?? null))
+  const candidateTracks = usableTracks.length > 0 ? usableTracks : analyzedTracks
+  if (candidateTracks.length === 0) {
+    autoDj.fail('No analyzed next-track candidate is available')
+    return
+  }
+
   const historyMap = new Map(currentMixer.trackHistory.map((item) => [item.id, item.lastLoadedAt]))
   const reference: TrackIntelligence = {
     id: referenceDeck.trackId,
@@ -93,7 +117,7 @@ async function selectAndPrepareNextTrack(): Promise<void> {
     ) / 3),
     lastLoadedAt: historyMap.get(referenceDeck.trackId) ?? null,
   }
-  const candidates = library.tracks.map((track) => candidateIntelligence(
+  const candidates = candidateTracks.map((track) => candidateIntelligence(
     track,
     profiles.get(track.id) ?? null,
     historyMap.get(track.id) ?? null,
@@ -104,6 +128,10 @@ async function selectAndPrepareNextTrack(): Promise<void> {
     return
   }
   if (suggestion.score < autoDj.minimumScore) {
+    if (hasPendingAnalysis) {
+      autoDj.setStatus('analyzing-library')
+      return
+    }
     autoDj.fail(`Best candidate scores ${suggestion.score}; lower the minimum score or take manual control`)
     return
   }
