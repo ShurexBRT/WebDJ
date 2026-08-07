@@ -57,6 +57,9 @@ export function StudioDock() {
       .map((deckId) => [decks[deckId].trackId!, { deckId, deck: decks[deckId], key: deckKeys[deckId] }]),
   ), [deckKeys, decks])
 
+  const availableTracks = useMemo(() => libraryTracks.filter((track) => track.file), [libraryTracks])
+  const disconnectedCount = libraryTracks.length - availableTracks.length
+
   const filteredTracks = useMemo(() => {
     const needle = query.trim().toLowerCase()
     if (!needle) return libraryTracks
@@ -65,10 +68,10 @@ export function StudioDock() {
   }, [libraryTracks, query])
 
   const analysisSummary = useMemo(() => {
-    const total = libraryTracks.length
+    const total = availableTracks.length
     let ready = 0
     let failed = 0
-    libraryTracks.forEach((track) => {
+    availableTracks.forEach((track) => {
       const status = analysisItems[track.id]?.status
       if (status === 'ready') ready += 1
       else if (status === 'failed') failed += 1
@@ -81,7 +84,7 @@ export function StudioDock() {
       pending: Math.max(0, total - completed),
       progress: total > 0 ? completed / total : 0,
     }
-  }, [analysisItems, libraryTracks])
+  }, [analysisItems, availableTracks])
 
   useEffect(() => {
     let cancelled = false
@@ -151,7 +154,9 @@ export function StudioDock() {
           <button className="active" type="button">LIBRARY</button>
           <label className="library-import-button"><Upload size={12} /> {isImporting ? 'IMPORTING…' : 'ADD TRACKS'}<input aria-label="Add tracks to library" type="file" accept="audio/*" multiple onChange={(event) => { void addFiles(event.target.files ?? []); event.currentTarget.value = '' }} /></label>
           <MusicFolderControl />
-          <span className="library-track-count">{visibleTrackCount} TRACKS</span>
+          <span className="library-track-count" title={disconnectedCount > 0 ? `${disconnectedCount} saved tracks need local file access` : undefined}>
+            {visibleTrackCount} TRACKS{disconnectedCount > 0 ? ` · ${disconnectedCount} SAVED` : ''}
+          </span>
           {analysisSummary.total > 0 && (
             <div
               className={`library-analysis-status${analysisSummary.failed > 0 ? ' has-error' : ''}${analysisSummary.pending > 0 ? ' running' : ''}`}
@@ -205,17 +210,23 @@ export function StudioDock() {
                     const liveBpm = loaded ? effectiveBpm(loaded.deck.bpm, loaded.deck.pitchPercent) : 0
                     const bpm = liveBpm > 0 ? liveBpm : profile?.bpm ?? 0
                     const camelotKey = loaded?.key.camelotKey || profile?.camelotKey || '—'
+                    const disconnected = !track.file
                     return (
-                      <div className={`library-track-row${loaded ? ` deck-row-${loaded.deckId.toLowerCase()}` : ''}`} role="row" key={track.id}>
+                      <div
+                        className={`library-track-row${loaded ? ` deck-row-${loaded.deckId.toLowerCase()}` : ''}${disconnected ? ' disconnected' : ''}`}
+                        role="row"
+                        key={track.id}
+                        title={disconnected ? 'Saved library entry — reconnect the linked folder to load this track' : undefined}
+                      >
                         <strong title={track.fileName}>{track.title}</strong>
                         <span>{track.artist}</span>
                         <span>{track.album || '—'}</span>
                         <span title={analysisStatus === 'analyzing' ? 'Analyzing BPM' : undefined}>{bpm > 0 ? bpm.toFixed(1) : analysisStatus === 'analyzing' ? '…' : '—'}</span>
                         <span title={analysisStatus === 'analyzing' ? 'Analyzing key' : undefined}>{camelotKey !== '—' ? camelotKey : analysisStatus === 'analyzing' ? '…' : '—'}</span>
-                        <span>{formatBytes(track.size)}</span>
+                        <span>{disconnected ? 'SAVED' : formatBytes(track.size)}</span>
                         <div className="library-actions">
-                          <button type="button" aria-label={`Load ${track.title} to deck A`} onClick={() => requestDeckLoad('A', track.id)}>A</button>
-                          <button type="button" aria-label={`Load ${track.title} to deck B`} onClick={() => requestDeckLoad('B', track.id)}>B</button>
+                          <button type="button" disabled={disconnected} title={disconnected ? 'Reconnect folder to load' : undefined} aria-label={`Load ${track.title} to deck A`} onClick={() => requestDeckLoad('A', track.id)}>A</button>
+                          <button type="button" disabled={disconnected} title={disconnected ? 'Reconnect folder to load' : undefined} aria-label={`Load ${track.title} to deck B`} onClick={() => requestDeckLoad('B', track.id)}>B</button>
                           <button type="button" aria-label={`Remove ${track.title} from library`} onClick={() => removeTrack(track.id)}><Trash2 size={11} /></button>
                         </div>
                       </div>
@@ -231,7 +242,7 @@ export function StudioDock() {
             {browseSection === 'History' && (
               <div className="library-table history-table" role="table" aria-label="Track history">
                 <div className="history-row library-head" role="row"><span>TRACK</span><span>LAST LOADED</span><span>STATUS</span></div>
-                {trackHistory.map((item) => <div className="history-row" role="row" key={item.id}><strong>{item.name}</strong><span>{new Date(item.lastLoadedAt).toLocaleString()}</span><span>{libraryTracks.some((track) => track.id === item.id) ? 'Available' : 'Reselect file'}</span></div>)}
+                {trackHistory.map((item) => <div className="history-row" role="row" key={item.id}><strong>{item.name}</strong><span>{new Date(item.lastLoadedAt).toLocaleString()}</span><span>{libraryTracks.some((track) => track.id === item.id && track.file) ? 'Available' : 'Reconnect file'}</span></div>)}
                 {trackHistory.length === 0 && <div className="library-empty">No tracks have been loaded yet.</div>}
               </div>
             )}

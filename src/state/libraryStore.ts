@@ -1,12 +1,13 @@
 import { create } from 'zustand'
 import { readTrackMetadata, type TrackMetadata } from '../library/metadata'
 import type { OnlineSourceId, OnlineTrack } from '../online/types'
+import type { PersistedLibraryTrack } from '../storage/libraryManifest'
 import { fingerprintFile } from '../storage/trackProfiles'
 import type { DeckId } from './mixerStore'
 
 export type LibraryTrack = TrackMetadata & {
   id: string
-  file: File
+  file: File | null
   fileName: string
   size: number
   type: string
@@ -26,7 +27,9 @@ type DeckLoadRequest = {
 type LibraryState = {
   tracks: LibraryTrack[]
   isImporting: boolean
+  manifestHydrated: boolean
   deckRequests: Record<DeckId, DeckLoadRequest | null>
+  hydrateManifest: (tracks: PersistedLibraryTrack[]) => void
   addFiles: (files: Iterable<File>) => Promise<void>
   addRemoteTrack: (file: File, onlineTrack: OnlineTrack) => Promise<LibraryTrack>
   removeTrack: (id: string) => void
@@ -43,10 +46,20 @@ const upsertTracks = (current: LibraryTrack[], imported: LibraryTrack[]) => {
   return Array.from(byId.values())
 }
 
+const mergeManifestWithLiveTracks = (manifest: PersistedLibraryTrack[], current: LibraryTrack[]) => {
+  const restored = manifest.map((track) => ({ ...track, file: null } satisfies LibraryTrack))
+  return upsertTracks(restored, current)
+}
+
 export const useLibraryStore = create<LibraryState>((set, get) => ({
   tracks: [],
   isImporting: false,
+  manifestHydrated: false,
   deckRequests: { A: null, B: null },
+  hydrateManifest: (tracks) => set((state) => ({
+    tracks: mergeManifestWithLiveTracks(tracks, state.tracks),
+    manifestHydrated: true,
+  })),
   addFiles: async (files) => {
     const candidates = Array.from(files).filter(isAudioFile)
     if (candidates.length === 0) return
@@ -101,7 +114,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
   clearLibrary: () => set({ tracks: [], deckRequests: { A: null, B: null } }),
   requestDeckLoad: (deckId, trackId) => {
     const track = get().tracks.find((item) => item.id === trackId)
-    if (!track) return
+    if (!track?.file) return
     set((state) => ({
       deckRequests: {
         ...state.deckRequests,

@@ -12,6 +12,7 @@ import { useKeyboardControls } from './controllers/useKeyboardControls'
 import { Deck } from './features/deck/Deck'
 import { Mixer } from './features/mixer/Mixer'
 import { LibraryAnalysisController } from './library/LibraryAnalysisController'
+import { LibraryPersistenceController } from './library/LibraryPersistenceController'
 import { useSessionPersistence } from './storage/useSessionPersistence'
 import { useMixerStore } from './state/mixerStore'
 import { useRecorderStore } from './state/recorderStore'
@@ -41,6 +42,7 @@ function App() {
 
   return (
     <main className="app-shell">
+      <LibraryPersistenceController />
       <LibraryAnalysisController />
       <AutoDjController />
       <header className="studio-header">

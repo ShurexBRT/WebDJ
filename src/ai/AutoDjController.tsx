@@ -46,6 +46,7 @@ async function selectAndPrepareNextTrack(): Promise<void> {
   const autoDj = useAutoDjStore.getState()
   const mixer = useMixerStore.getState()
   const library = useLibraryStore.getState()
+  const availableTracks = library.tracks.filter((track) => track.file)
   const keys = useKeyStore.getState()
   const gains = useGainAssistStore.getState()
   const referenceDeckId = selectAutoDjReferenceDeck(mixer.masterDeck, mixer.decks)
@@ -53,8 +54,8 @@ async function selectAndPrepareNextTrack(): Promise<void> {
     autoDj.setStatus('armed')
     return
   }
-  if (library.tracks.length < 2) {
-    autoDj.fail('Add at least two tracks to the library')
+  if (availableTracks.length < 2) {
+    autoDj.fail('Reconnect the music folder or add at least two playable library tracks')
     return
   }
 
@@ -65,20 +66,20 @@ async function selectAndPrepareNextTrack(): Promise<void> {
   }
 
   const referenceDeck = mixer.decks[referenceDeckId]
-  const referenceTrack = library.tracks.find((track) => track.id === referenceDeck.trackId)
+  const referenceTrack = availableTracks.find((track) => track.id === referenceDeck.trackId)
   if (!referenceDeck.trackId || !referenceTrack) {
-    autoDj.fail('The playing reference track must remain available in the library')
+    autoDj.fail('The playing reference track must remain connected in the library')
     return
   }
 
   autoDj.setStatus('selecting')
-  const profileEntries = await Promise.all(library.tracks.map(async (track) => [track.id, await getTrackProfile(track.id)] as const))
+  const profileEntries = await Promise.all(availableTracks.map(async (track) => [track.id, await getTrackProfile(track.id)] as const))
   if (!useAutoDjStore.getState().enabled) return
   const currentMixer = useMixerStore.getState()
   if (currentMixer.decks[referenceDeckId].trackId !== referenceDeck.trackId) return
 
   const profiles = new Map(profileEntries)
-  const nonReferenceTracks = library.tracks.filter((track) => track.id !== referenceDeck.trackId)
+  const nonReferenceTracks = availableTracks.filter((track) => track.id !== referenceDeck.trackId)
   const analyzedTracks = nonReferenceTracks.filter((track) => isTrackProfileAnalysisComplete(profiles.get(track.id) ?? null))
   const analysisItems = useLibraryAnalysisStore.getState().items
   const hasPendingAnalysis = nonReferenceTracks.some((track) => {
@@ -136,9 +137,9 @@ async function selectAndPrepareNextTrack(): Promise<void> {
     return
   }
 
-  const track = library.tracks.find((item) => item.id === suggestion.trackId)
+  const track = availableTracks.find((item) => item.id === suggestion.trackId)
   if (!track) {
-    autoDj.fail('The selected candidate disappeared from the library')
+    autoDj.fail('The selected candidate is no longer connected')
     return
   }
 
