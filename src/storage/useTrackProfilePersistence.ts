@@ -70,9 +70,6 @@ export function useTrackProfilePersistence(deckId: DeckId): void {
     deckKey.confidence,
     deckKey.key,
     deckKey.status,
-    gainAnalysis?.confidence,
-    gainAnalysis?.peakDb,
-    gainAnalysis?.recommendedTrimDb,
-    gainAnalysis?.rmsDb,
+    gainAnalysis,
   ])
 }
