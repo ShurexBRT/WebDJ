@@ -10,7 +10,7 @@ export type AutoTransitionPlan = {
   outgoingDeck: DeckId
   targetDeck: DeckId
   strategy: TransitionStrategy
-  profileId: AutoDjMixProfileId
+  profileId: AutoDjMixProfileId | 'manual'
   beats: number
   score: number
 }
@@ -31,8 +31,15 @@ const smoothstep = (value: number) => {
   return safe * safe * (3 - 2 * safe)
 }
 
-export function transitionBeats(strategy: TransitionStrategy, profileId: AutoDjMixProfileId = 'smooth'): number {
-  return mixProfile(profileId).transitionBeats[strategy]
+const legacyTransitionBeats = (strategy: TransitionStrategy): number => {
+  if (strategy === 'long-blend') return 32
+  if (strategy === 'bass-swap' || strategy === 'filter-blend') return 16
+  if (strategy === 'echo-out') return 8
+  return 1
+}
+
+export function transitionBeats(strategy: TransitionStrategy, profileId?: AutoDjMixProfileId): number {
+  return profileId ? mixProfile(profileId).transitionBeats[strategy] : legacyTransitionBeats(strategy)
 }
 
 export function createAutoTransitionPlan(
@@ -40,7 +47,7 @@ export function createAutoTransitionPlan(
   trackTitle: string,
   outgoingDeck: DeckId,
   targetDeck: DeckId,
-  profileId: AutoDjMixProfileId = 'smooth',
+  profileId?: AutoDjMixProfileId,
 ): AutoTransitionPlan {
   return {
     trackId: suggestion.trackId,
@@ -48,7 +55,7 @@ export function createAutoTransitionPlan(
     outgoingDeck,
     targetDeck,
     strategy: suggestion.transition,
-    profileId,
+    profileId: profileId ?? 'manual',
     beats: transitionBeats(suggestion.transition, profileId),
     score: suggestion.score,
   }
