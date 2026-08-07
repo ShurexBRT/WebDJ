@@ -1,11 +1,13 @@
 export type PersistedBpmStatus = 'detected' | 'manual' | 'failed' | 'idle'
 export type PersistedKeyStatus = 'detected' | 'manual' | 'failed' | 'idle'
+export type PersistedGainStatus = 'detected' | 'failed' | 'idle'
 
 export type TrackProfile = {
   id: string
   fileName: string
   fileSize: number
   lastModified: number
+  durationSeconds?: number
   bpm: number
   bpmConfidence: number
   bpmAnalysisStatus: PersistedBpmStatus
@@ -17,6 +19,7 @@ export type TrackProfile = {
   gainRmsDb?: number
   gainPeakDb?: number
   gainConfidence?: number
+  gainAnalysisStatus?: PersistedGainStatus
   beatOffsetSeconds: number
   barOffsetBeats: number
   waveform: number[]
@@ -27,10 +30,12 @@ export type TrackProfile = {
 }
 
 type NormalizedTrackProfile = TrackProfile & {
+  durationSeconds: number
   key: string
   camelotKey: string
   keyConfidence: number
   keyAnalysisStatus: PersistedKeyStatus
+  gainAnalysisStatus: PersistedGainStatus
 }
 
 const DATABASE_NAME = 'webdj-studio'
@@ -40,10 +45,13 @@ const memoryProfiles = new Map<string, NormalizedTrackProfile>()
 
 const normalizeProfile = (profile: TrackProfile): NormalizedTrackProfile => ({
   ...profile,
+  durationSeconds: profile.durationSeconds ?? 0,
   key: profile.key ?? '',
   camelotKey: profile.camelotKey ?? '',
   keyConfidence: profile.keyConfidence ?? 0,
   keyAnalysisStatus: profile.keyAnalysisStatus ?? 'idle',
+  gainAnalysisStatus: profile.gainAnalysisStatus
+    ?? (Number.isFinite(profile.gainRmsDb) ? 'detected' : 'idle'),
   waveform: profile.waveform.slice(0, 1_200),
   hotCues: profile.hotCues.slice(0, 6),
 })

@@ -23,7 +23,7 @@ describe('AI next-track scoring', () => {
     expect(suggestion.reasons).toContain('Camelot-compatible key')
   })
 
-  it('penalizes a recently played candidate and exposes warnings', () => {
+  it('penalizes a recently played low-confidence candidate and chooses a safer mismatch transition', () => {
     const now = 1_000_000
     const suggestion = scoreTrackCandidate(
       track(),
@@ -31,9 +31,19 @@ describe('AI next-track scoring', () => {
       now,
     )
     expect(suggestion.score).toBeLessThan(45)
-    expect(suggestion.transition).toBe('hard-cut')
+    expect(suggestion.transition).toBe('echo-out')
     expect(suggestion.warnings).toContain('Recently played')
     expect(suggestion.warnings).toContain('Low analysis confidence')
+  })
+
+  it('keeps hard cut available for a high-confidence extreme tempo mismatch', () => {
+    const suggestion = scoreTrackCandidate(
+      track(),
+      track({ id: 'candidate', bpm: 150, camelotKey: '2B', rmsDb: -5, analysisConfidence: 0.95 }),
+      1_000_000,
+    )
+    expect(suggestion.breakdown.tempo).toBeLessThan(35)
+    expect(suggestion.transition).toBe('hard-cut')
   })
 
   it('ranks the strongest candidate first and excludes the reference track', () => {

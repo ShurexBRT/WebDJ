@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { isAutoDjMixProfileId, type AutoDjMixProfileId } from '../ai/mixProfiles'
 
-export type AutoDjStatus = 'off' | 'armed' | 'selecting' | 'preparing' | 'ready' | 'transitioning' | 'error'
+export type AutoDjStatus = 'off' | 'armed' | 'analyzing-library' | 'selecting' | 'preparing' | 'ready' | 'transitioning' | 'error'
 
 const PROFILE_STORAGE_KEY = 'webdj-autodj-profile-v1'
 

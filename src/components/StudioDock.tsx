@@ -3,8 +3,10 @@ import { useEffect, useMemo, useState } from 'react'
 import { effectiveBpm } from '../audio/tempo'
 import { getAudioEngine } from '../audio/AudioEngine'
 import { AudioSettings } from '../features/settings/AudioSettings'
+import { runLibraryAnalysisWorker } from '../library/libraryAnalysisWorker'
 import { getTrackProfile, type TrackProfile } from '../storage/trackProfiles'
 import { useKeyStore } from '../state/keyStore'
+import { useLibraryAnalysisStore } from '../state/libraryAnalysisStore'
 import { useLibraryStore } from '../state/libraryStore'
 import { useMixerStore, type DeckId } from '../state/mixerStore'
 import { AiAssistantPanel } from './AiAssistantPanel'
@@ -37,6 +39,11 @@ export function StudioDock() {
   const removeTrack = useLibraryStore((state) => state.removeTrack)
   const clearLibrary = useLibraryStore((state) => state.clearLibrary)
   const requestDeckLoad = useLibraryStore((state) => state.requestDeckLoad)
+  const analysisItems = useLibraryAnalysisStore((state) => state.items)
+  const activeAnalysisTitle = useLibraryAnalysisStore((state) => state.activeTrackTitle)
+  const analysisRevision = useLibraryAnalysisStore((state) => state.revision)
+  const lastUpdatedTrackId = useLibraryAnalysisStore((state) => state.lastUpdatedTrackId)
+  const retryFailedAnalysis = useLibraryAnalysisStore((state) => state.retryFailed)
   const [query, setQuery] = useState('')
   const [browseSection, setBrowseSection] = useState('Local Files')
   const [isDragging, setIsDragging] = useState(false)
@@ -57,6 +64,25 @@ export function StudioDock() {
       .some((value) => value.toLowerCase().includes(needle)))
   }, [libraryTracks, query])
 
+  const analysisSummary = useMemo(() => {
+    const total = libraryTracks.length
+    let ready = 0
+    let failed = 0
+    libraryTracks.forEach((track) => {
+      const status = analysisItems[track.id]?.status
+      if (status === 'ready') ready += 1
+      else if (status === 'failed') failed += 1
+    })
+    const completed = ready + failed
+    return {
+      total,
+      ready,
+      failed,
+      pending: Math.max(0, total - completed),
+      progress: total > 0 ? completed / total : 0,
+    }
+  }, [analysisItems, libraryTracks])
+
   useEffect(() => {
     let cancelled = false
     void Promise.all(libraryTracks.map(async (track) => [track.id, await getTrackProfile(track.id)] as const))
@@ -76,6 +102,21 @@ export function StudioDock() {
   ])
 
   useEffect(() => {
+    if (!lastUpdatedTrackId) return
+    let cancelled = false
+    void getTrackProfile(lastUpdatedTrackId).then((profile) => {
+      if (cancelled) return
+      setTrackProfiles((current) => {
+        const next = new Map(current)
+        if (profile) next.set(lastUpdatedTrackId, profile)
+        else next.delete(lastUpdatedTrackId)
+        return next
+      })
+    })
+    return () => { cancelled = true }
+  }, [analysisRevision, lastUpdatedTrackId])
+
+  useEffect(() => {
     if (!clearArmed) return
     const timeout = window.setTimeout(() => setClearArmed(false), 3_500)
     return () => window.clearTimeout(timeout)
@@ -91,9 +132,17 @@ export function StudioDock() {
     setClearArmed(false)
   }
 
+  const handleRetryAnalysis = () => {
+    retryFailedAnalysis()
+    void runLibraryAnalysisWorker()
+  }
+
   const visibleTrackCount = query.trim() && filteredTracks.length !== libraryTracks.length
     ? `${filteredTracks.length} / ${libraryTracks.length}`
     : String(libraryTracks.length)
+  const analysisLabel = analysisSummary.pending > 0
+    ? `ANALYZING ${analysisSummary.ready + analysisSummary.failed}/${analysisSummary.total}`
+    : `ANALYZED ${analysisSummary.ready}/${analysisSummary.total}`
 
   return (
     <section className="studio-dock" id="library-dock" aria-label="Studio library and routing">
@@ -103,6 +152,19 @@ export function StudioDock() {
           <label className="library-import-button"><Upload size={12} /> {isImporting ? 'IMPORTING…' : 'ADD TRACKS'}<input aria-label="Add tracks to library" type="file" accept="audio/*" multiple onChange={(event) => { void addFiles(event.target.files ?? []); event.currentTarget.value = '' }} /></label>
           <MusicFolderControl />
           <span className="library-track-count">{visibleTrackCount} TRACKS</span>
+          {analysisSummary.total > 0 && (
+            <div
+              className={`library-analysis-status${analysisSummary.failed > 0 ? ' has-error' : ''}${analysisSummary.pending > 0 ? ' running' : ''}`}
+              aria-label="Library analysis status"
+              title={activeAnalysisTitle ? `Analyzing ${activeAnalysisTitle}` : analysisSummary.failed > 0 ? `${analysisSummary.failed} track analysis failures` : 'Library analysis complete'}
+            >
+              <span>{analysisLabel}</span>
+              <i aria-hidden="true"><b style={{ width: `${Math.round(analysisSummary.progress * 100)}%` }} /></i>
+              {analysisSummary.failed > 0 && analysisSummary.pending === 0 && (
+                <button type="button" aria-label="Retry failed library analysis" onClick={handleRetryAnalysis}>RETRY {analysisSummary.failed}</button>
+              )}
+            </div>
+          )}
           <button
             className={`library-clear-button${clearArmed ? ' confirm' : ''}`}
             type="button"
@@ -139,6 +201,7 @@ export function StudioDock() {
                   {filteredTracks.map((track) => {
                     const loaded = deckByTrackId.get(track.id)
                     const profile = trackProfiles.get(track.id)
+                    const analysisStatus = analysisItems[track.id]?.status
                     const liveBpm = loaded ? effectiveBpm(loaded.deck.bpm, loaded.deck.pitchPercent) : 0
                     const bpm = liveBpm > 0 ? liveBpm : profile?.bpm ?? 0
                     const camelotKey = loaded?.key.camelotKey || profile?.camelotKey || '—'
@@ -147,8 +210,8 @@ export function StudioDock() {
                         <strong title={track.fileName}>{track.title}</strong>
                         <span>{track.artist}</span>
                         <span>{track.album || '—'}</span>
-                        <span>{bpm > 0 ? bpm.toFixed(1) : '—'}</span>
-                        <span>{camelotKey}</span>
+                        <span title={analysisStatus === 'analyzing' ? 'Analyzing BPM' : undefined}>{bpm > 0 ? bpm.toFixed(1) : analysisStatus === 'analyzing' ? '…' : '—'}</span>
+                        <span title={analysisStatus === 'analyzing' ? 'Analyzing key' : undefined}>{camelotKey !== '—' ? camelotKey : analysisStatus === 'analyzing' ? '…' : '—'}</span>
                         <span>{formatBytes(track.size)}</span>
                         <div className="library-actions">
                           <button type="button" aria-label={`Load ${track.title} to deck A`} onClick={() => requestDeckLoad('A', track.id)}>A</button>

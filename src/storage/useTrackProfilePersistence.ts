@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { useGainAssistStore } from '../state/gainAssistStore'
 import { useKeyStore } from '../state/keyStore'
 import { useMixerStore, type DeckId } from '../state/mixerStore'
-import { saveTrackProfile, type PersistedBpmStatus, type PersistedKeyStatus } from './trackProfiles'
+import { saveTrackProfile, type PersistedBpmStatus, type PersistedGainStatus, type PersistedKeyStatus } from './trackProfiles'
 
 export function useTrackProfilePersistence(deckId: DeckId): void {
   const deck = useMixerStore((state) => state.decks[deckId])
@@ -19,12 +19,14 @@ export function useTrackProfilePersistence(deckId: DeckId): void {
       const keyAnalysisStatus: PersistedKeyStatus = deckKey.status === 'analyzing'
         ? 'idle'
         : deckKey.status
+      const gainAnalysisStatus: PersistedGainStatus = gainAnalysis ? 'detected' : 'failed'
 
       void saveTrackProfile({
         id: deck.trackId!,
         fileName: deck.trackName!,
         fileSize: deck.fileSize,
         lastModified: deck.lastModified,
+        durationSeconds: deck.duration,
         bpm: deck.bpm,
         bpmConfidence: deck.bpmConfidence,
         bpmAnalysisStatus,
@@ -36,6 +38,7 @@ export function useTrackProfilePersistence(deckId: DeckId): void {
         gainRmsDb: gainAnalysis?.rmsDb,
         gainPeakDb: gainAnalysis?.peakDb,
         gainConfidence: gainAnalysis?.confidence,
+        gainAnalysisStatus,
         beatOffsetSeconds: deck.beatOffsetSeconds,
         barOffsetBeats: deck.barOffsetBeats,
         waveform: deck.waveform,
@@ -54,6 +57,7 @@ export function useTrackProfilePersistence(deckId: DeckId): void {
     deck.bpmAnalysisStatus,
     deck.bpmConfidence,
     deck.cuePoint,
+    deck.duration,
     deck.fileSize,
     deck.hotCues,
     deck.isAnalyzing,
@@ -66,9 +70,6 @@ export function useTrackProfilePersistence(deckId: DeckId): void {
     deckKey.confidence,
     deckKey.key,
     deckKey.status,
-    gainAnalysis?.confidence,
-    gainAnalysis?.peakDb,
-    gainAnalysis?.recommendedTrimDb,
-    gainAnalysis?.rmsDb,
+    gainAnalysis,
   ])
 }
