@@ -7,7 +7,8 @@ const plan = {
   outgoingDeck: 'A' as const,
   targetDeck: 'B' as const,
   strategy: 'echo-out' as const,
-  beats: 8,
+  profileId: 'smooth' as const,
+  beats: 16,
   score: 78,
 }
 
