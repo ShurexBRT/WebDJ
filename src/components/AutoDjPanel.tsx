@@ -3,6 +3,7 @@ import { takeOverAutoDj } from '../ai/autoDjControl'
 import { AUTO_DJ_PROFILE_IDS, mixProfile, type AutoDjMixProfileId } from '../ai/mixProfiles'
 import { useAutoDjStore } from '../state/autoDjStore'
 import { useAutoTransitionStore } from '../state/autoTransitionStore'
+import { useLibraryAnalysisStore } from '../state/libraryAnalysisStore'
 import { useLibraryStore } from '../state/libraryStore'
 import { useMixerStore } from '../state/mixerStore'
 import './autoDj.css'
@@ -10,6 +11,7 @@ import './autoDj.css'
 const statusLabels = {
   off: 'OFF',
   armed: 'ARMED',
+  'analyzing-library': 'ANALYZING',
   selecting: 'SELECTING',
   preparing: 'PREPARING',
   ready: 'READY',
@@ -31,10 +33,13 @@ export function AutoDjPanel() {
   const setMixProfile = useAutoDjStore((state) => state.setMixProfile)
   const transitionProgress = useAutoTransitionStore((state) => state.progress)
   const tracks = useLibraryStore((state) => state.tracks)
+  const analysisItems = useLibraryAnalysisStore((state) => state.items)
   const decks = useMixerStore((state) => state.decks)
   const hasPlayingDeck = decks.A.isPlaying || decks.B.isPlaying
   const canEnable = tracks.length >= 2 && hasPlayingDeck
   const profile = mixProfile(mixProfileId)
+  const analyzedCount = tracks.filter((track) => analysisItems[track.id]?.status === 'ready').length
+  const waitingForAnalysis = status === 'analyzing-library'
 
   return (
     <section className={`full-autodj-panel${enabled ? ' enabled' : ''} status-${status}`} aria-label="Full AutoDJ control">
@@ -51,8 +56,8 @@ export function AutoDjPanel() {
 
       <div className="full-autodj-next">
         <span>NEXT TRACK</span>
-        <strong>{nextTrackTitle || (enabled ? 'Waiting for a playable master deck…' : 'Manual control')}</strong>
-        <small>{nextTrackTitle ? `${nextScore}% match` : `${tracks.length} library tracks`}</small>
+        <strong>{nextTrackTitle || (waitingForAnalysis ? 'Building analyzed candidate pool…' : enabled ? 'Waiting for a playable master deck…' : 'Manual control')}</strong>
+        <small>{nextTrackTitle ? `${nextScore}% match` : waitingForAnalysis ? `${analyzedCount}/${tracks.length} library tracks analyzed` : `${tracks.length} library tracks`}</small>
       </div>
 
       <label className="full-autodj-profile" title={profile.shortDescription}>
