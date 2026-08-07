@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { effectiveBpm } from '../audio/tempo'
 import { getAudioEngine } from '../audio/AudioEngine'
 import { AudioSettings } from '../features/settings/AudioSettings'
-import { runLibraryAnalysisWorker } from '../library/LibraryAnalysisController'
+import { runLibraryAnalysisWorker } from '../library/libraryAnalysisWorker'
 import { getTrackProfile, type TrackProfile } from '../storage/trackProfiles'
 import { useKeyStore } from '../state/keyStore'
 import { useLibraryAnalysisStore } from '../state/libraryAnalysisStore'
@@ -68,19 +68,16 @@ export function StudioDock() {
     const total = libraryTracks.length
     let ready = 0
     let failed = 0
-    let analyzing = 0
     libraryTracks.forEach((track) => {
       const status = analysisItems[track.id]?.status
       if (status === 'ready') ready += 1
       else if (status === 'failed') failed += 1
-      else if (status === 'analyzing') analyzing += 1
     })
     const completed = ready + failed
     return {
       total,
       ready,
       failed,
-      analyzing,
       pending: Math.max(0, total - completed),
       progress: total > 0 ? completed / total : 0,
     }
@@ -145,9 +142,7 @@ export function StudioDock() {
     : String(libraryTracks.length)
   const analysisLabel = analysisSummary.pending > 0
     ? `ANALYZING ${analysisSummary.ready + analysisSummary.failed}/${analysisSummary.total}`
-    : analysisSummary.failed > 0
-      ? `ANALYZED ${analysisSummary.ready}/${analysisSummary.total}`
-      : `ANALYZED ${analysisSummary.ready}/${analysisSummary.total}`
+    : `ANALYZED ${analysisSummary.ready}/${analysisSummary.total}`
 
   return (
     <section className="studio-dock" id="library-dock" aria-label="Studio library and routing">
