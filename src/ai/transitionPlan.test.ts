@@ -10,6 +10,16 @@ describe('auto-transition plans', () => {
     expect(transitionBeats('hard-cut', 'quick')).toBe(2)
   })
 
+  it('keeps manual AI Assistant plans on the established timing', () => {
+    expect(transitionBeats('long-blend')).toBe(32)
+    expect(transitionBeats('bass-swap')).toBe(16)
+    expect(transitionBeats('filter-blend')).toBe(16)
+    expect(transitionBeats('echo-out')).toBe(8)
+    expect(transitionBeats('hard-cut')).toBe(1)
+    const plan = createAutoTransitionPlan({ trackId: 'next', transition: 'long-blend', score: 88 }, 'Next', 'A', 'B')
+    expect(plan).toMatchObject({ profileId: 'manual', beats: 32 })
+  })
+
   it('stores the chosen mix profile on the prepared plan', () => {
     const plan = createAutoTransitionPlan({ trackId: 'next', transition: 'filter-blend', score: 88 }, 'Next', 'A', 'B', 'deep')
     expect(plan).toMatchObject({ profileId: 'deep', beats: 64, outgoingDeck: 'A', targetDeck: 'B' })
