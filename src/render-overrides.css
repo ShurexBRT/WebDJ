@@ -1,5 +1,17 @@
 /* Render fidelity pass: proportions and density from the approved WebDJ studio concept. */
 
+.studio-brand-icon {
+  width: 31px;
+  height: 31px;
+  flex: 0 0 31px;
+  border-radius: 8px;
+  filter: drop-shadow(0 0 7px rgba(37, 182, 255, .14));
+}
+
+.studio-brand {
+  gap: 7px;
+}
+
 .studio-header {
   grid-template-columns: 126px auto minmax(90px, 1fr) 230px 118px 180px 34px;
 }
@@ -166,6 +178,12 @@
   .studio-header {
     grid-template-columns: 118px auto minmax(72px, 1fr) 190px 105px 160px 32px;
     gap: 7px;
+  }
+
+  .studio-brand-icon {
+    width: 28px;
+    height: 28px;
+    flex-basis: 28px;
   }
 
   .horizontal-meter {
