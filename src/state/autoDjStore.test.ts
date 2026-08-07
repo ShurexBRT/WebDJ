@@ -2,7 +2,10 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { useAutoDjStore } from './autoDjStore'
 
 describe('Full AutoDJ store', () => {
-  beforeEach(() => useAutoDjStore.getState().reset())
+  beforeEach(() => {
+    localStorage.clear()
+    useAutoDjStore.getState().reset()
+  })
 
   it('arms, tracks the next selection and counts completed transitions', () => {
     useAutoDjStore.getState().enable()
@@ -20,6 +23,13 @@ describe('Full AutoDJ store', () => {
     useAutoDjStore.getState().enable()
     useAutoDjStore.getState().disable()
     expect(useAutoDjStore.getState()).toMatchObject({ enabled: false, status: 'off', minimumScore: 100 })
+  })
+
+  it('persists the chosen mix profile across store resets', () => {
+    useAutoDjStore.getState().setMixProfile('deep')
+    expect(localStorage.getItem('webdj-autodj-profile-v1')).toBe('deep')
+    useAutoDjStore.getState().reset()
+    expect(useAutoDjStore.getState().mixProfileId).toBe('deep')
   })
 
   it('holds a failure until the user takes over or resets', () => {
