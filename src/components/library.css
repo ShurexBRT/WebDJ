@@ -100,6 +100,59 @@
   font-weight: 900;
   letter-spacing: .08em;
 }
+.library-analysis-status {
+  min-width: 126px;
+  display: grid;
+  grid-template-columns: minmax(92px, auto) 46px auto;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 6px;
+  border: 1px solid #284153;
+  border-radius: 3px;
+  background: #081018;
+  color: #9edcff;
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: .055em;
+  white-space: nowrap;
+}
+.library-analysis-status > span { overflow: hidden; text-overflow: ellipsis; }
+.library-analysis-status > i {
+  height: 4px;
+  overflow: hidden;
+  border: 1px solid #25333d;
+  border-radius: 999px;
+  background: #040607;
+}
+.library-analysis-status > i > b {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #27b8ff, #55db91);
+  transition: width 140ms ease;
+}
+.library-analysis-status.running > span::before {
+  content: '';
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  margin-right: 5px;
+  border-radius: 50%;
+  background: #46ceff;
+  box-shadow: 0 0 7px rgba(70,206,255,.65);
+}
+.library-analysis-status.has-error { border-color: #684a2b; color: #efbf79; }
+.library-analysis-status button {
+  min-height: 20px;
+  border: 1px solid #6b4e2d;
+  border-radius: 2px;
+  padding: 0 5px;
+  background: #1a1209;
+  color: #efbf79;
+  font-size: 6px;
+  font-weight: 900;
+  cursor: pointer;
+}
+.library-analysis-status button:hover { border-color: #a9793e; filter: brightness(1.12); }
 .library-clear-button {
   margin-left: auto;
   min-width: 64px;
@@ -232,11 +285,13 @@
 @media (max-width: 1450px) {
   .studio-dock { grid-template-columns: minmax(0, 1fr) 290px; }
   .music-folder-name { max-width: 120px; }
+  .library-analysis-status { min-width: 105px; grid-template-columns: minmax(72px, auto) 34px auto; }
   .library-track-row { grid-template-columns: minmax(110px, 1fr) minmax(80px, .7fr) 65px 42px 38px 48px 96px; padding: 0 6px; }
 }
 
 @media (max-width: 1280px) {
   .studio-dock { grid-template-columns: minmax(0, 1fr) 285px; }
   .music-folder-name { display: none; }
+  .library-analysis-status { grid-template-columns: minmax(72px, auto) 30px auto; }
   .headphone-panel { grid-column: auto; }
 }
