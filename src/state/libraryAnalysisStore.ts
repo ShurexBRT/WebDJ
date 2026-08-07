@@ -11,6 +11,7 @@ type LibraryAnalysisState = {
   items: Record<string, LibraryAnalysisItem>
   activeTrackId: string | null
   activeTrackTitle: string
+  lastUpdatedTrackId: string | null
   revision: number
   enqueue: (trackIds: string[]) => void
   start: (trackId: string, trackTitle: string) => void
@@ -25,6 +26,7 @@ const initialState = () => ({
   items: {} as Record<string, LibraryAnalysisItem>,
   activeTrackId: null as string | null,
   activeTrackTitle: '',
+  lastUpdatedTrackId: null as string | null,
   revision: 0,
 })
 
@@ -46,12 +48,14 @@ export const useLibraryAnalysisStore = create<LibraryAnalysisState>((set) => ({
     items: { ...state.items, [trackId]: { status: 'ready', error: null } },
     activeTrackId: state.activeTrackId === trackId ? null : state.activeTrackId,
     activeTrackTitle: state.activeTrackId === trackId ? '' : state.activeTrackTitle,
+    lastUpdatedTrackId: trackId,
     revision: state.revision + 1,
   })),
   fail: (trackId, error) => set((state) => ({
     items: { ...state.items, [trackId]: { status: 'failed', error } },
     activeTrackId: state.activeTrackId === trackId ? null : state.activeTrackId,
     activeTrackTitle: state.activeTrackId === trackId ? '' : state.activeTrackTitle,
+    lastUpdatedTrackId: trackId,
     revision: state.revision + 1,
   })),
   removeMissing: (trackIds) => set((state) => {
@@ -62,6 +66,9 @@ export const useLibraryAnalysisStore = create<LibraryAnalysisState>((set) => ({
       items,
       activeTrackId: activeStillExists ? state.activeTrackId : null,
       activeTrackTitle: activeStillExists ? state.activeTrackTitle : '',
+      lastUpdatedTrackId: state.lastUpdatedTrackId && keep.has(state.lastUpdatedTrackId)
+        ? state.lastUpdatedTrackId
+        : null,
     }
   }),
   retryFailed: () => set((state) => ({
