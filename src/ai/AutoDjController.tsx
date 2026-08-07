@@ -98,7 +98,7 @@ async function selectAndPrepareNextTrack(): Promise<void> {
     profiles.get(track.id) ?? null,
     historyMap.get(track.id) ?? null,
   ))
-  const suggestion = rankTrackCandidates(reference, candidates)[0]
+  const suggestion = rankTrackCandidates(reference, candidates, Date.now(), autoDj.mixProfileId)[0]
   if (!suggestion) {
     autoDj.fail('No next-track candidate is available')
     return
@@ -114,7 +114,7 @@ async function selectAndPrepareNextTrack(): Promise<void> {
     return
   }
 
-  const plan = createAutoTransitionPlan(suggestion, track.title, referenceDeckId, targetDeckId)
+  const plan = createAutoTransitionPlan(suggestion, track.title, referenceDeckId, targetDeckId, autoDj.mixProfileId)
   useAutoTransitionStore.getState().prepare(plan)
   autoDj.setNextTrack(track.id, track.title, suggestion.score)
   autoDj.setStatus('preparing')
